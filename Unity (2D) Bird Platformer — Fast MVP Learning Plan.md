@@ -4,13 +4,17 @@ Build a simple, playable 2D Unity game where a bird travels from Point A (start)
 No project structure or gameplay systems are assumed to exist yet.
 # Constraints and decisions
 * Engine: Unity, scripting in C# (Unity gameplay scripting is C#; Python is optional only for external tooling and is not needed for the MVP).
-* 2D workflow: Rigidbody2D/Collider2D, Tilemap optional!
+* 2D workflow: Rigidbody2D/Collider2D, Tilemap optional.
+* Input scheme (MVP): WASD
+    * A/D: move left/right
+    * W: flap/jump when grounded; hold W in air to glide (reduced gravity)
+* Failure condition (MVP): hazards only (falling out of the world is not a loss).
 * MVP target: one short level, one player, a few obstacle types, a clear win/lose loop.
 # MVP scope (what “done” means)
 * Start screen → Play
 * One level scene with Start (A) and Goal (B)
-* Player can move left/right, run (optional), jump/flap, and fly/glide enough to clear obstacles
-* Obstacles that cause failure on contact
+* Player can move left/right and flap/glide enough to clear obstacles (WASD)
+* Hazards that cause failure on contact (no fall-death)
 * Win on reaching the family nest/goal trigger
 * Simple UI overlay: “You Win” / “Game Over” + Restart
 * Basic audio is optional; basic visuals can be placeholders
@@ -32,6 +36,13 @@ No project structure or gameplay systems are assumed to exist yet.
 * `GameManager.cs` (state machine: playing/win/lose, restart)
 * `UIController.cs` (simple screens)
 * `CameraFollow2D.cs` (follow player)
+# Timeline (4 hours per Saturday)
+This timetable assumes a start date of Saturday, January 17, 2026.
+* Saturday, January 17, 2026: Phase 1
+* Saturday, January 24, 2026: Phase 2 (Part 1)
+* Saturday, January 31, 2026: Phase 2 (Part 2) + Phase 3 (Part 1)
+* Saturday, February 7, 2026: Phase 3 (finish) + Phase 4 + Phase 5
+* Saturday, February 14, 2026: Phase 6 (optional)
 # Implementation plan (vertical slice first)
 ## Phase 1: Project setup and first playable loop (fastest milestone)
 * Create Unity 2D project.
@@ -55,20 +66,20 @@ Goal: movement feels controllable quickly, even with placeholder art.
     * Collider2D (CapsuleCollider2D or BoxCollider2D)
     * SpriteRenderer (placeholder square/bird)
 * Implement `PlayerController2D` with these inputs:
-    * Horizontal: A/D or Left/Right
-    * Jump/Flap: Space
-    * Run (optional): Shift
+    * Horizontal: A/D
+    * Flap/Glide: W
 * Movement model (MVP-friendly):
     * Grounded detection via small overlap check (circle/box at feet) against `Ground` layer.
     * Horizontal movement sets target velocity (different speeds for walking vs running).
     * Flap/jump provides an upward impulse when grounded.
     * Air control allows steering left/right.
-    * “Flight” simplest option: holding Space reduces gravity (glide) and/or applies small upward force capped by max vertical speed.
+    * “Flight” simplest option: holding W reduces gravity (glide) and/or applies small upward force capped by max vertical speed.
 * Expose tuning variables in Inspector:
     * walkSpeed, runSpeed, jumpImpulse, airControl, glideGravityScale, maxFallSpeed
 ## Phase 3: Obstacles and lose condition
 * Create `Hazard` behavior:
     * Any collider on `Hazard` layer causes loss when player touches it.
+    * Only hazards cause loss (falling out of the world is not a loss).
 * Implement loss flow:
     * On hazard collision: disable player input, play small feedback (flash/sound), show Game Over UI.
     * Restart button reloads `Level01`.
@@ -90,6 +101,12 @@ Goal: movement feels controllable quickly, even with placeholder art.
     * Short text: “Reunited!” + “Play Again”
 * Add light narrative:
     * Menu text: “Find your family. Reach the nest.”
+## Phase 6 (optional): Build/export + tiny polish pass
+* Create a Mac build and verify start-to-finish outside the editor.
+* Pick 1–2 small polish items only (avoid scope creep):
+    * Add 1–2 sound effects (flap + win/lose)
+    * Add one simple moving hazard
+    * Tighten UI copy and level readability
 # Level design (keep it small)
 * One linear level, 30–90 seconds long.
 * Teach mechanics in order:
