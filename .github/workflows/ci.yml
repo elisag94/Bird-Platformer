@@ -40,7 +40,7 @@ jobs:
           name: test-results
           path: test-results
 
-    build:
+  build:
     name: Build (smoke build)
     runs-on: ubuntu-latest
     needs: tests
