@@ -18,9 +18,12 @@ jobs:
         uses: actions/cache@v4
         with:
           path: Library
-          key: Library-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
+          key: Library-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/ProjectVersion.txt', 'Packages/manifest.json') }}
           restore-keys: |
             Library-
+
+      - name: Remove Library to prevent cross-version cache problems
+        run: rm -rf Library || true
 
       - name: Run Unity Test Runner
         uses: game-ci/unity-test-runner@v4
@@ -51,9 +54,12 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: Library
-          key: Library-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
+          key: Library-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/ProjectVersion.txt', 'Packages/manifest.json') }}
           restore-keys: |
             Library-
+
+      - name: Remove Library to prevent cross-version cache problems
+        run: rm -rf Library || true
 
       - name: Build with Unity
         uses: game-ci/unity-builder@v4
@@ -63,11 +69,11 @@ jobs:
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
         with:
           projectPath: .
-          unityVersion: 6000.3.4f1
+          unityVersion: 6000.5.6f1
           targetPlatform: StandaloneLinux64
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: build-StandaloneLinux64
-          path: build  
+          path: build
