@@ -1,0 +1,23 @@
+name: Free disk space on runner
+description: Prunes Docker and temp/cache folders to recover space on GitHub-hosted runners
+
+runs:
+  using: composite
+  steps:
+    - name: Free up disk space on runner
+      shell: bash
+      run: |
+        echo "Pruning docker system, builder cache and runner temps to free space"
+        sudo docker system prune -af || true
+        sudo docker builder prune -af || true
+        sudo docker image prune -a -f || true
+        sudo docker volume prune -f || true
+
+        # remove runner temp/cache directories (safe on ephemeral runners)
+        sudo rm -rf /home/runner/work/_temp/* || true
+        sudo rm -rf /home/runner/.cache/* || true
+        sudo rm -rf /tmp/* || true
+
+        # show free space for debugging
+        df -h || true
+        sudo docker info || true
