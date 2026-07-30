@@ -14,16 +14,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Cache Library
-        uses: actions/cache@v4
-        with:
-          path: Library
-          key: Library-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/ProjectVersion.txt', 'Packages/manifest.json') }}
-          restore-keys: |
-            Library-
-
-      - name: Remove Library to prevent cross-version cache problems
-        run: rm -rf Library || true
 
       - name: Run Unity Test Runner
         uses: game-ci/unity-test-runner@v4
@@ -50,13 +40,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
-      - uses: actions/cache@v4
-        with:
-          path: Library
-          key: Library-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/ProjectVersion.txt', 'Packages/manifest.json') }}
-          restore-keys: |
-            Library-
 
       - name: Remove Library to prevent cross-version cache problems
         run: rm -rf Library || true
