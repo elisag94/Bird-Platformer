@@ -30,7 +30,7 @@ jobs:
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
         with:
           projectPath: .
-          unityVersion: 6000.3.4f1
+          unityVersion: 6000.5.6f1
           testMode: all
           artifactsPath: test-results
 
