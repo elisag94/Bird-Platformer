@@ -14,6 +14,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Free up disk space on runner
+        run: |
+          echo "Pruning docker system, builder cache and runner temps to free space"
+          sudo docker system prune -af || true
+          sudo docker builder prune -af || true
+          sudo docker image prune -a -f || true
+          sudo docker volume prune -f || true
+          # remove runner temp/cache directories (safe on ephemeral runners)
+          sudo rm -rf /home/runner/work/_temp/* || true
+          sudo rm -rf /home/runner/.cache/* || true
+          sudo rm -rf /tmp/* || true
+          # show free space for debugging
+          df -h || true
+          sudo docker info || true
 
       - name: Run Unity Test Runner
         uses: game-ci/unity-test-runner@v4
