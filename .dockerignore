@@ -1,4 +1,35 @@
+# Everything here is excluded from the build context — the tarball sent to the
+# Docker daemon before the build even starts. Only web/game/ and nginx/ are
+# actually needed by the Dockerfile.
+
+# Unity generated
 Library/
 Temp/
 Logs/
+Obj/
+obj/
+UserSettings/
+MemoryCaptures/
+
+# Unity source. The compiled build output ships, not the project.
 Assets/
+Packages/
+ProjectSettings/
+
+# Local build output. Build straight into web/game/ instead.
+Build/
+Builds/
+
+# Repo tooling, docs and deployment config — none of it belongs in the image
+.git/
+.github/
+.vscode/
+.idea/
+.claude/
+k8s/
+web/coming-soon/
+*.md
+*.csproj
+*.sln
+*.slnx
+.DS_Store

@@ -1,6 +1,9 @@
 # Unity / C#
 # Keep the repo clean by ignoring generated Unity folders and IDE/build artifacts.
 
+# Unity Web build output (produced locally and in CI, never committed)
+/web/game/
+
 # Unity generated folders
 [Ll]ibrary/
 [Tt]emp/

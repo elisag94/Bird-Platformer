@@ -31,12 +31,13 @@ jobs:
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: test-results
           path: test-results
 
-  build:
-    name: Build (smoke build)
+  build-web:
+    name: Build Unity Web (WebGL)
     runs-on: ubuntu-latest
     needs: tests
 
@@ -47,6 +48,18 @@ jobs:
       - name: Free up disk space on runner
         uses: ./.github/actions/free-disk-space
 
+      # Without this, every run recompiles every asset from scratch. The key
+      # changes whenever project content changes, so it invalidates correctly.
+      - name: Cache Unity Library
+        uses: actions/cache@v4
+        with:
+          path: Library
+          key: Library-WebGL-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
+          restore-keys: |
+            Library-WebGL-
+
+      # NOTE: the platform is called "Web" in the Unity 6 UI, but the
+      # underlying BuildTarget enum is still WebGL, which is what GameCI wants.
       - name: Build with Unity
         uses: game-ci/unity-builder@v4
         env:
@@ -56,9 +69,30 @@ jobs:
         with:
           projectPath: .
           unityVersion: 6000.5.6f1
-          targetPlatform: StandaloneLinux64
+          targetPlatform: WebGL
+          buildsPath: build
+          buildName: app
 
-      - name: Upload build artifact
+      # GameCI's output nesting has changed between versions, so rather than
+      # hardcoding a path, find index.html and work back from it.
+      - name: Normalise build output to web/game/
+        run: |
+          set -euo pipefail
+          echo "--- what Unity produced ---"
+          find build -maxdepth 4 -type d | sort
+          INDEX=$(find build -name index.html -print -quit)
+          if [ -z "$INDEX" ]; then
+            echo "::error::No index.html found under build/ — the Unity build did not produce a Web player."
+            exit 1
+          fi
+          SRC=$(dirname "$INDEX")
+          echo "--- using $SRC ---"
+          mkdir -p web/game
+          cp -R "$SRC"/. web/game/
+          ls -la web/game
+          du -sh web/game
+
+      - name: Upload web build
         uses: actions/upload-artifact@v4
         with:
           name: build-StandaloneLinux64
