@@ -12,10 +12,22 @@ Before deploying, ensure you have the following installed and configured:
 ## Repository Structure
 
 ```text
+Bird-Platformer/
+├── Assets/
+├── Packages/
+├── ProjectSettings/
 ├── k8s/
 │   ├── deployment.yaml   # Application deployment specification
 │   ├── service.yaml      # NodePort service for internal routing
-
+|   └── README.md  
+├── web/
+│   └── coming-soon/
+│       └── index.html    # Placeholder site
+├── .github/
+│   └── workflows/
+├── .gitignore
+├── .dockerignore
+└── Dockerfile
 ```
 
 ## Deployment Steps
@@ -23,7 +35,7 @@ Before deploying, ensure you have the following installed and configured:
 1. **Clone the repository:**
    ```bash
    git clone https://github.com/elisag94/Bird-Platformer.git
-   cd bird-platformer
+   cd Bird-Platformer
    ```
 
 2. **Build the Docker image (local):**
