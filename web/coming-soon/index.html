@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Bird Platformer — Coming Soon</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700&family=Nunito:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --sky-top: #16213e;
+    --sky-mid: #4d6d99;
+    --sky-horizon: #f2a65a;
+    --glow: #ffe3b3;
+    --hill-far: #26314a;
+    --hill-near: #1a2233;
+    --cream: #fff8ec;
+    --bird-body: #e8703a;
+    --bird-belly: #ffe9cf;
+    --bird-wing: #b4451f;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    height: 100%;
+    font-family: 'Nunito', sans-serif;
+  }
+
+  .sky {
+    position: relative;
+    width: 100%;
+    height: 100vh;
+    overflow: hidden;
+    background: linear-gradient(
+      to bottom,
+      var(--sky-top) 0%,
+      var(--sky-mid) 45%,
+      var(--sky-horizon) 78%,
+      var(--glow) 100%
+    );
+  }
+
+  /* faint stars, only upper portion, fading toward dawn */
+  .stars {
+    position: absolute;
+    inset: 0;
+    height: 55%;
+    background-image:
+      radial-gradient(2px 2px at 10% 20%, #ffffff 100%, transparent 0),
+      radial-gradient(1.5px 1.5px at 25% 40%, #ffffff 100%, transparent 0),
+      radial-gradient(2px 2px at 60% 15%, #ffffff 100%, transparent 0),
+      radial-gradient(1.5px 1.5px at 80% 30%, #ffffff 100%, transparent 0),
+      radial-gradient(1.5px 1.5px at 45% 10%, #ffffff 100%, transparent 0),
+      radial-gradient(2px 2px at 90% 45%, #ffffff 100%, transparent 0);
+    opacity: 0.55;
+    mask-image: linear-gradient(to bottom, black 0%, transparent 100%);
+  }
+
+  .cloud {
+    position: absolute;
+    background: rgba(255,255,255,0.18);
+    border-radius: 50%;
+    filter: blur(1px);
+  }
+  .cloud-a { width: 140px; height: 44px; top: 18%; left: -160px; animation: drift 60s linear infinite; }
+  .cloud-b { width: 90px; height: 30px; top: 30%; left: -120px; animation: drift 80s linear infinite; animation-delay: -25s; opacity: 0.7;}
+
+  @keyframes drift {
+    from { transform: translateX(0); }
+    to   { transform: translateX(calc(100vw + 300px)); }
+  }
+
+  .hills {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    line-height: 0;
+  }
+  .hill-far path { fill: var(--hill-far); }
+  .hill-near path { fill: var(--hill-near); }
+  .hill-far { position: absolute; bottom: 0; width: 100%; }
+  .hill-near { position: absolute; bottom: 0; width: 100%; }
+
+  .flight-path {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+  .flight-path path {
+    fill: none;
+    stroke: var(--cream);
+    stroke-width: 2;
+    stroke-dasharray: 3 10;
+    opacity: 0.35;
+  }
+
+  .bird-wrap {
+    position: absolute;
+    width: 46px;
+    height: 46px;
+    offset-path: path("M -40 300 C 200 60, 500 340, 780 120 S 1180 260, 1480 90");
+    offset-distance: 0%;
+    animation: fly 22s ease-in-out infinite;
+  }
+
+  @keyframes fly {
+    0%   { offset-distance: 0%; }
+    50%  { offset-distance: 100%; }
+    100% { offset-distance: 0%; }
+  }
+
+  .bird {
+    animation: bob 0.9s ease-in-out infinite;
+    transform-origin: center;
+  }
+
+  @keyframes bob {
+    0%, 100% { transform: translateY(0) rotate(-4deg); }
+    50%      { transform: translateY(-6px) rotate(4deg); }
+  }
+
+  .wing {
+    transform-origin: 60% 55%;
+    animation: flap 0.45s ease-in-out infinite;
+  }
+
+  @keyframes flap {
+    0%, 100% { transform: scaleY(1) rotate(0deg); }
+    50%      { transform: scaleY(0.55) rotate(-18deg); }
+  }
+
+  .nest {
+    position: absolute;
+    bottom: 6.2vh;
+    right: 9%;
+    width: 64px;
+    opacity: 0.95;
+  }
+
+  .content {
+    position: relative;
+    z-index: 5;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 0 24px;
+  }
+
+  .eyebrow {
+    font-family: 'Nunito', sans-serif;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    color: var(--cream);
+    opacity: 0.75;
+    margin-bottom: 0.75rem;
+  }
+
+  h1 {
+    font-family: 'Baloo 2', sans-serif;
+    font-weight: 700;
+    font-size: clamp(2.6rem, 7vw, 4.6rem);
+    color: var(--cream);
+    margin: 0;
+    text-shadow: 0 4px 24px rgba(0,0,0,0.25);
+  }
+
+  p.tagline {
+    font-size: clamp(1rem, 2vw, 1.2rem);
+    color: var(--cream);
+    opacity: 0.9;
+    max-width: 34ch;
+    margin: 1.1rem 0 0;
+    line-height: 1.5;
+  }
+
+  .badge {
+    margin-top: 2.2rem;
+    font-family: 'Baloo 2', sans-serif;
+    font-size: 0.95rem;
+    color: var(--sky-top);
+    background: var(--cream);
+    padding: 0.55rem 1.4rem;
+    border-radius: 999px;
+    font-weight: 600;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.18);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .cloud, .bird-wrap, .bird, .wing {
+      animation: none !important;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="sky">
+  <div class="stars"></div>
+  <div class="cloud cloud-a"></div>
+  <div class="cloud cloud-b"></div>
+
+  <svg class="flight-path" viewBox="0 0 1480 400" preserveAspectRatio="none">
+    <path d="M -40 300 C 200 60, 500 340, 780 120 S 1180 260, 1480 90" />
+  </svg>
+
+  <div class="bird-wrap">
+    <svg class="bird" width="46" height="46" viewBox="0 0 64 64">
+      <ellipse cx="30" cy="36" rx="18" ry="13" fill="var(--bird-body)"/>
+      <ellipse cx="22" cy="40" rx="9" ry="7" fill="var(--bird-belly)"/>
+      <path class="wing" d="M28 30 C 14 22, 6 26, 4 34 C 14 34, 22 34, 30 38 Z" fill="var(--bird-wing)"/>
+      <circle cx="42" cy="28" r="4.5" fill="var(--bird-body)"/>
+      <polygon points="46,28 54,25 46,32" fill="#f4c95d"/>
+      <circle cx="43.5" cy="26.5" r="1.3" fill="#1a1a1a"/>
+    </svg>
+  </div>
+
+  <svg class="nest" viewBox="0 0 64 40">
+    <path d="M4 30 C 4 18, 60 18, 60 30 C 50 26, 14 26, 4 30 Z" fill="#6b4423"/>
+    <path d="M8 26 C 10 16, 54 16, 56 26 C 44 22, 20 22, 8 26 Z" fill="#8a5a2e"/>
+    <ellipse cx="26" cy="21" rx="4" ry="3" fill="#fdf1d6"/>
+    <ellipse cx="34" cy="22" rx="4" ry="3" fill="#fdf1d6"/>
+  </svg>
+
+  <svg class="hill-far" viewBox="0 0 1440 220" preserveAspectRatio="none" style="height:22vh;">
+    <path d="M0 120 C 240 40, 480 180, 760 100 C 1000 40, 1220 150, 1440 90 L1440 220 L0 220 Z"/>
+  </svg>
+  <svg class="hill-near" viewBox="0 0 1440 180" preserveAspectRatio="none" style="height:14vh;">
+    <path d="M0 100 C 300 150, 620 40, 900 110 C 1150 170, 1300 90, 1440 120 L1440 180 L0 180 Z"/>
+  </svg>
+
+  <div class="content">
+    <div class="eyebrow">A cozy 2D platformer</div>
+    <h1>Bird Platformer</h1>
+    <p class="tagline">She's on her way home..flapping, gliding, and dodging a few obstacles along the way.</p>
+    <div class="badge">Coming soon</div>
+  </div>
+</div>
+
+</body>
+</html>
