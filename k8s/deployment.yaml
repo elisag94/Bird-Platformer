@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bird-platformer-game
+  labels:
+    app: bird-platformer
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: bird-platformer
+  template:
+    metadata:
+      labels:
+        app: bird-platformer
+    spec:
+      containers:
+      - name: bird-platformer-container
+        image: bird-platformer:coming-soon-v2
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 80
