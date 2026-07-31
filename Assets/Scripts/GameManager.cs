@@ -1,13 +1,34 @@
+using System;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
+/// <summary>
+/// Owns the game state machine (Playing / Won / Lost) and scene transitions.
+/// Everything else — UI, player input, hazards — reacts to StateChanged
+/// instead of holding direct references to each other.
+/// </summary>
 public class GameManager : MonoBehaviour
 {
+    public enum GameState
+    {
+        Playing,
+        Won,
+        Lost
+    }
+
     public static GameManager Instance { get; private set; }
+
+    /// <summary>
+    /// Static so listeners in a freshly loaded scene can subscribe in OnEnable
+    /// without worrying about whether Instance exists yet.
+    /// </summary>
+    public static event Action<GameState> StateChanged;
 
     [Header("Scene Names")]
     [SerializeField] private string mainMenuSceneName = "MainMenu";
     [SerializeField] private string level01SceneName = "Level01";
+
+    public GameState State { get; private set; } = GameState.Playing;
 
     private void Awake()
     {
@@ -24,33 +45,66 @@ public class GameManager : MonoBehaviour
         Instance = this;
         DontDestroyOnLoad(gameObject);
 
-#if UNITY_EDITOR
-        Debug.Log("GameManager initialized and set to DontDestroyOnLoad.", this);
-#endif
+        SceneManager.sceneLoaded += HandleSceneLoaded;
+    }
+
+    private void OnDestroy()
+    {
+        if (Instance == this)
+        {
+            SceneManager.sceneLoaded -= HandleSceneLoaded;
+            Instance = null;
+        }
+    }
+
+    // Every scene load puts us back into Playing. Without this, restarting after
+    // a loss would reload the level with the state still stuck on Lost.
+    private void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        SetState(GameState.Playing);
+    }
+
+    private void SetState(GameState newState)
+    {
+        State = newState;
+        StateChanged?.Invoke(newState);
+    }
+
+    public void Win()
+    {
+        if (State != GameState.Playing)
+        {
+            return; // guard against the goal trigger firing twice
+        }
+
+        Debug.Log("WIN — reunited with the family.", this);
+        SetState(GameState.Won);
+    }
+
+    public void Lose()
+    {
+        if (State != GameState.Playing)
+        {
+            return; // guard against multiple hazard contacts in the same frame
+        }
+
+        Debug.Log("GAME OVER — hit a hazard.", this);
+        SetState(GameState.Lost);
     }
 
     public void LoadMainMenu()
     {
-#if UNITY_EDITOR
-        Debug.Log($"Loading Main Menu scene: {mainMenuSceneName}", this);
-#endif
         SceneManager.LoadScene(mainMenuSceneName);
     }
 
     public void PlayLevel01()
     {
-#if UNITY_EDITOR
-        Debug.Log($"Loading Level scene: {level01SceneName}", this);
-#endif
         SceneManager.LoadScene(level01SceneName);
     }
 
     public void RestartCurrentScene()
     {
         Scene current = SceneManager.GetActiveScene();
-#if UNITY_EDITOR
-        Debug.Log($"Restarting current scene: {current.name}", this);
-#endif
         SceneManager.LoadScene(current.name);
     }
 }
