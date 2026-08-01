@@ -29,7 +29,7 @@ Bird-Platformer/
 │   │   └── index.html          # Placeholder site (superseded by the game)
 │   └── game/                   # Unity Web build output — gitignored
 ├── .github/
-│   └── workflows/ci.yml        # tests → Web build → image build & push
+│   └── workflows/ci.yml        # tests → Web build
 ├── .gitignore
 └── .dockerignore
 ```
@@ -50,7 +50,9 @@ site by accident.
 2. **Produce the Unity Web build:**
    The image serves `web/game/`, which is gitignored and not present after a
    fresh clone. Build it from Unity (File → Build Profiles → Web) with the
-   output folder set to `web/game/`.
+   output folder set to `web/game/`. If you don't have Unity (probably so),
+   you can simply download the build artifact from CI and copy it to the output
+   folder mentioned prior.
 
 3. **Build the Docker image (local):**
    Use a new tag for each change so Kubernetes detects the update:
