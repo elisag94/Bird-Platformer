@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: bird-platformer-container
-        image: bird-platformer:coming-soon-v2
+        image: bird-platformer:v1
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 80

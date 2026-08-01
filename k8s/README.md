@@ -63,8 +63,10 @@ site by accident.
    though the Dockerfile lives in `docker/`, because the image needs
    `web/game/` from the root.
 
-   Sanity-check it outside Kubernetes first:
+   Optionally sanity-check it outside Kubernetes first:
    ```bash
+   eval $(minikube docker-env -u)     # -u for unset, to repoint Docker CLI to your machine
+   docker build -f docker/Dockerfile -t bird-platformer:v1 .
    docker run --rm -p 8080:80 bird-platformer:v1
    # http://localhost:8080          → the game
    # http://localhost:8080/healthz  → "ok"
