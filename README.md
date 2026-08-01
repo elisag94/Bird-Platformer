@@ -73,4 +73,4 @@ minikube service bird-platformer-service
 ```
 
 Note that `web/game/` is gitignored, so a fresh clone needs a Unity Web build
-(or the `web-build` artifact from a CI run) before the image will build.
+(or the `web-build` artifact from a CI run) before the image will build. You can grab this artifact from CI and drop the contents into `web/game/` at the root of the cloned repository.
