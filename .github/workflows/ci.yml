@@ -29,6 +29,73 @@ jobs:
           testMode: all
           artifactsPath: test-results
 
+      # Renders the NUnit XML onto the workflow run page. No third-party action
+      # and no extra permissions — $GITHUB_STEP_SUMMARY is just a file that
+      # GitHub renders as markdown.
+      # if: always() matters — without it this is skipped exactly when tests
+      # fail, which is when you want to read it.
+      - name: Summarise test results
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import glob, os, sys, xml.etree.ElementTree as ET
+
+          ICON = {"Passed": "✅", "Failed": "❌", "Skipped": "⏭️", "Inconclusive": "❔"}
+          files = sorted(glob.glob("test-results/*.xml"))
+          out = ["## Unity test results", ""]
+
+          if not files:
+              out += ["No result files found under `test-results/`.",
+                      "The Unity step probably failed before it could run any tests."]
+          else:
+              grand = {"passed": 0, "failed": 0, "skipped": 0, "total": 0}
+              blocks, failures = [], []
+
+              for path in files:
+                  mode = os.path.basename(path).replace("-results.xml", "").replace(".xml", "")
+                  try:
+                      run = ET.parse(path).getroot()
+                  except ET.ParseError as e:
+                      out.append(f"Could not parse `{path}`: {e}")
+                      continue
+
+                  for k in grand:
+                      grand[k] += int(run.get(k, 0) or 0)
+
+                  rows = ["<details>",
+                          f"<summary>{mode} — {run.get('passed','0')} passed, "
+                          f"{run.get('failed','0')} failed, {run.get('skipped','0')} skipped</summary>",
+                          "", "| Test | Result | Time |", "|---|---|---|"]
+                  for case in run.iter("test-case"):
+                      res = case.get("result", "?")
+                      secs = float(case.get("duration", 0) or 0)
+                      rows.append(f"| `{case.get('name')}` | {ICON.get(res,'')} {res} | {secs*1000:.0f} ms |")
+                      if res == "Failed":
+                          msg = case.findtext("failure/message") or ""
+                          failures.append((case.get("fullname", case.get("name")), msg.strip()))
+                  rows += ["", "</details>", ""]
+                  blocks += rows
+
+              verdict = "❌ Failing" if grand["failed"] else "✅ All passing"
+              out += [f"**{verdict}** — {grand['passed']} passed, {grand['failed']} failed, "
+                      f"{grand['skipped']} skipped, {grand['total']} total", ""]
+
+              if failures:
+                  out += ["### Failures", ""]
+                  for name, msg in failures:
+                      out += [f"**`{name}`**", "", "```", msg, "```", ""]
+
+              out += blocks
+
+          summary = os.environ.get("GITHUB_STEP_SUMMARY")
+          text = "\n".join(out) + "\n"
+          if summary:
+              with open(summary, "a") as fh:
+                  fh.write(text)
+          else:
+              sys.stdout.write(text)
+          PY
+
       - name: Upload test results
         uses: actions/upload-artifact@v4
         if: always()
