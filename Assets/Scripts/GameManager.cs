@@ -28,7 +28,11 @@ public class GameManager : MonoBehaviour
     [SerializeField] private string mainMenuSceneName = "MainMenu";
     [SerializeField] private string level01SceneName = "Level01";
 
-    public GameState State { get; private set; } = GameState.Playing;
+    // The actual rules live in a plain C# class so they can be unit tested
+    // without play mode. See Assets/Tests/EditMode/GameStateMachineTests.cs.
+    private readonly GameStateMachine stateMachine = new GameStateMachine();
+
+    public GameState State => stateMachine.State;
 
     private void Awake()
     {
@@ -45,6 +49,7 @@ public class GameManager : MonoBehaviour
         Instance = this;
         DontDestroyOnLoad(gameObject);
 
+        stateMachine.StateChanged += RaiseStateChanged;
         SceneManager.sceneLoaded += HandleSceneLoaded;
     }
 
@@ -52,44 +57,42 @@ public class GameManager : MonoBehaviour
     {
         if (Instance == this)
         {
+            stateMachine.StateChanged -= RaiseStateChanged;
             SceneManager.sceneLoaded -= HandleSceneLoaded;
             Instance = null;
         }
+    }
+
+    private static void RaiseStateChanged(GameState newState)
+    {
+        StateChanged?.Invoke(newState);
     }
 
     // Every scene load puts us back into Playing. Without this, restarting after
     // a loss would reload the level with the state still stuck on Lost.
     private void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
     {
-        SetState(GameState.Playing);
-    }
-
-    private void SetState(GameState newState)
-    {
-        State = newState;
-        StateChanged?.Invoke(newState);
+        stateMachine.ResetToPlaying();
     }
 
     public void Win()
     {
-        if (State != GameState.Playing)
+        if (!stateMachine.Win())
         {
-            return; // guard against the goal trigger firing twice
+            return; // already won or lost — the goal trigger fired twice
         }
 
         Debug.Log("WIN — reunited with the family.", this);
-        SetState(GameState.Won);
     }
 
     public void Lose()
     {
-        if (State != GameState.Playing)
+        if (!stateMachine.Lose())
         {
-            return; // guard against multiple hazard contacts in the same frame
+            return; // already won or lost — multiple hazard contacts in one frame
         }
 
         Debug.Log("GAME OVER — hit a hazard.", this);
-        SetState(GameState.Lost);
     }
 
     public void LoadMainMenu()
