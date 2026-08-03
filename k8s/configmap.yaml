@@ -1,0 +1,40 @@
+apiVersion: v1
+data:
+  default.conf: |
+    server {
+        listen 80;
+
+        # Where the files live inside the container — this is where the
+        # Dockerfile copies web/game/ to.
+        root /usr/share/nginx/html;
+        index index.html;
+
+        # Kubernetes will ask for this over and over to check the container is
+        # healthy. Answering directly means a probe never has to load a real page.
+        location = /healthz {
+            access_log off;
+            default_type text/plain;
+            return 200 "ok\n";
+        }
+
+        # Browsers should never keep a copy of this page.
+        # "no-cache" means store it but revalidate before every use —
+        # it is NOT "do not store", which is "no-store".
+        location = /index.html {
+            add_header Cache-Control "no-cache";
+        }
+
+        # Unity writes the build name into these filenames, so a new build
+        # produces new paths. Nothing here can go stale, which is what makes
+        # "immutable" safe — the browser reuses its copy with no round trip.
+        location /Build/ {
+            add_header Cache-Control "public, max-age=31536000, immutable";
+        }
+
+        location /TemplateData/ {
+            add_header Cache-Control "public, max-age=31536000, immutable";
+        }
+    }
+kind: ConfigMap
+metadata:
+  name: bird-platformer-config
