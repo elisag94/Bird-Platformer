@@ -14,6 +14,7 @@ spec:
       labels:
         app: bird-platformer
     spec:
+      automountServiceAccountToken: false
       containers:
       - name: bird-platformer-container
         image: bird-platformer:v1
