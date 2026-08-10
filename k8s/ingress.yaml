@@ -1,0 +1,24 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bird-platformer-ingress
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: bird.local
+    http:
+      paths:
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: echo
+            port:
+              number: 80
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: bird-platformer-service
+            port:
+              number: 80
