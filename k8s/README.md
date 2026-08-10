@@ -22,7 +22,9 @@ Bird-Platformer/
 │       └── default.conf        # server config, incl. /healthz for probes
 ├── k8s/                        # how it's deployed
 │   ├── deployment.yaml         # Application deployment specification
-│   ├── service.yaml            # NodePort service for internal routing
+│   ├── configmap.yaml          # nginx server config, cache headers, /healthz
+│   ├── service.yaml            # ClusterIP — reached via the Ingress
+│   ├── ingress.yaml            # routes bird.local → the game service
 │   └── README.md
 ├── web/                        # what gets served
 │   ├── coming-soon/
@@ -74,23 +76,45 @@ site by accident.
    # http://localhost:8080/healthz  → "ok"
    ```
 
-4. **Apply the manifests:**
+4. **Enable the Ingress controller:**
+   An Ingress resource is only a set of rules — a controller has to be running
+   to act on them.
+   ```bash
+   minikube addons enable ingress
+   kubectl get pods -n ingress-nginx      # wait for the controller to be Running
+   ```
+
+5. **Add a local hostname:**
+   `/etc/hosts` is a private address book your machine checks before DNS.
+   `bird.local` resolves only on this laptop.
+   ```bash
+   sudo sh -c 'echo "127.0.0.1  bird.local" >> /etc/hosts'
+   ```
+
+6. **Apply the manifests:**
    Apply all files in the `k8s` directory to your cluster:
    ```bash
    kubectl apply -f k8s/
    ```
 
-5. **Verify the deployment:**
+7. **Verify the deployment:**
    Check the status of the pods and services:
    ```bash
    kubectl get pods -l app=bird-platformer
    kubectl get svc bird-platformer-service
+   kubectl get ingress
    ```
 
-6. **View the App:**
-   To actually view the app from your machine, use a separate terminal to open the NodePort service
+8. **Open the tunnel** (macOS, Docker driver only):
+   The minikube node runs on a Docker-internal network macOS can't route to.
+   `minikube tunnel` bridges it to localhost. **Leave this terminal open.**
    ```bash
-   minikube service bird-platformer-service
+   minikube tunnel
+   ```
+
+9. **Play:**
+   ```bash
+   open http://bird.local
    ```
 
 ## Cleanup

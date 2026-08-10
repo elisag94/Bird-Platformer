@@ -94,8 +94,12 @@ Full instructions are in [`k8s/README.md`](k8s/README.md). The short version:
 minikube start
 eval $(minikube docker-env)
 docker build -f docker/Dockerfile -t bird-platformer:v1 .
+minikube addons enable ingress
+sudo sh -c 'echo "127.0.0.1  bird.local" >> /etc/hosts'
 kubectl apply -f k8s/
-minikube service bird-platformer-service
+minikube tunnel
+open http://bird.local
+
 ```
 
 Note that `web/game/` is gitignored, so a fresh clone needs a Unity Web build
