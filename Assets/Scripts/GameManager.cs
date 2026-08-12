@@ -47,6 +47,23 @@ public class GameManager : MonoBehaviour
     /// </summary>
     public string CurrentLevelId => SceneManager.GetActiveScene().name;
 
+    /// <summary>
+    /// How many times the player has restarted since the level was last
+    /// entered from the menu. Submitted to the API as `deaths`.
+    ///
+    /// The API has a `deaths` column but the game has no concept of dying
+    /// mid-run: touching a hazard ends the run outright and the only way
+    /// forward is a restart. Rather than send a permanently-zero field —
+    /// worse than not having the field at all — "deaths" is defined as
+    /// "attempts before the one that worked", which is the same information a
+    /// player would give you if you asked how it went.
+    ///
+    /// This counter lives here because GameManager is DontDestroyOnLoad: it is
+    /// the only object that survives the scene reload a restart performs.
+    /// Anything in the level scene forgets by definition.
+    /// </summary>
+    public int RestartCount { get; private set; }
+
     private void Awake()
     {
         // Simple singleton so we don't end up with duplicates when switching scenes.
@@ -136,11 +153,16 @@ public class GameManager : MonoBehaviour
 
     public void PlayLevel01()
     {
+        // A fresh attempt from the menu is attempt one. Resetting here rather
+        // than on every scene load is the whole point: a restart must NOT
+        // clear the count, or it would always be zero.
+        RestartCount = 0;
         SceneManager.LoadScene(level01SceneName);
     }
 
     public void RestartCurrentScene()
     {
+        RestartCount++;
         Scene current = SceneManager.GetActiveScene();
         SceneManager.LoadScene(current.name);
     }

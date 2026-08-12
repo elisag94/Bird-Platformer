@@ -24,6 +24,23 @@ public class LevelUIController : MonoBehaviour
     [Tooltip("Prefix shown on the win panel, e.g. \"Time: \"")]
     [SerializeField] private string winTimePrefix = "Time: ";
 
+    [Header("Leaderboard (all optional)")]
+    [Tooltip("Where 'Rank #3 — personal best!' or an error message appears.")]
+    [SerializeField] private TMP_Text winRankText;
+
+    [Tooltip("Optional. Refreshed after a successful submit so the new time is already in the list.")]
+    [SerializeField] private LeaderboardPanel leaderboardPanel;
+
+    [Tooltip("Turn off to play without touching the API — useful when the cluster is down.")]
+    [SerializeField] private bool submitScores = true;
+
+    // Single-submit guard. GameStateMachine already refuses a second Win(), but
+    // this object also replays the current state in OnEnable, and a panel being
+    // re-enabled must not post the same run twice. The guard is a field on a
+    // per-scene component, so a restart clears it by destroying the component —
+    // no reset logic to forget.
+    private bool hasSubmitted;
+
     // Subscribing in OnEnable / unsubscribing in OnDisable is the safe pattern —
     // it survives scene reloads without leaking listeners.
     private void OnEnable()
@@ -81,6 +98,83 @@ public class LevelUIController : MonoBehaviour
         if (state == GameManager.GameState.Won && winTimeText != null && GameManager.Instance != null)
         {
             winTimeText.text = winTimePrefix + RunTimer.Format(GameManager.Instance.ElapsedMilliseconds);
+        }
+
+        if (state == GameManager.GameState.Won)
+        {
+            SubmitRun();
+        }
+    }
+
+    /// <summary>
+    /// Send the finished run to the leaderboard.
+    ///
+    /// Fired from the state transition rather than from a "Submit" button: the
+    /// run is over and its numbers are already final, so asking the player to
+    /// confirm adds a step and a way to lose the score.
+    /// </summary>
+    private void SubmitRun()
+    {
+        if (!submitScores || hasSubmitted)
+        {
+            return;
+        }
+
+        hasSubmitted = true;
+
+        if (GameManager.Instance == null || LeaderboardClient.Instance == null)
+        {
+            SetRankText("Leaderboard unavailable.");
+            return;
+        }
+
+        GameManager manager = GameManager.Instance;
+
+        SetRankText("Submitting…");
+
+        // The client holds the stopwatch, which is the known weakness of this
+        // design: ElapsedMilliseconds is whatever the browser says it is. The
+        // API's MIN_RUN_MS / MAX_RUN_MS bounds make the crudest cheating
+        // obvious, and the real fix is a server-issued run token so the
+        // duration comes from the server's own clock. Named, not hidden.
+        LeaderboardClient.Instance.SubmitScore(
+            PlayerIdentity.Name,
+            manager.CurrentLevelId,
+            manager.ElapsedMilliseconds,
+            manager.RestartCount,
+            OnScoreAccepted,
+            OnScoreRejected);
+    }
+
+    private void OnScoreAccepted(LeaderboardClient.ScoreResponse response)
+    {
+        SetRankText(response.personal_best
+            ? $"Rank #{response.rank} — personal best!"
+            : $"Rank #{response.rank}");
+
+        // Refreshed only after the POST returns, never in parallel with it.
+        // Fetching the board while the write is still in flight is a race that
+        // shows a list without the run that just finished — and looks exactly
+        // like a dropped submission.
+        if (leaderboardPanel != null)
+        {
+            leaderboardPanel.Refresh();
+        }
+    }
+
+    private void OnScoreRejected(string message)
+    {
+        // The server's own words. A 400 here reads "duration_ms must be at
+        // least 3000" — which is the API telling you the run was too short to
+        // be plausible, not a bug in the game.
+        SetRankText(message);
+    }
+
+    private void SetRankText(string message)
+    {
+        if (winRankText != null)
+        {
+            winRankText.text = message;
         }
     }
 
