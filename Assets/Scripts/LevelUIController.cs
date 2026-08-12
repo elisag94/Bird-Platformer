@@ -47,14 +47,21 @@ public class LevelUIController : MonoBehaviour
     {
         GameManager.StateChanged += HandleStateChanged;
 
-        if (GameManager.Instance != null)
-        {
-            HandleStateChanged(GameManager.Instance.State);
-        }
-        else
-        {
-            HandleStateChanged(GameManager.GameState.Playing);
-        }
+        // Catching up to the current state is a DISPLAY concern only, so this
+        // path is explicitly not allowed to submit a score.
+        //
+        // Submitting a run is a response to a run FINISHING — an event that
+        // happens once, at a known moment. "The state I found when I woke up"
+        // is not that event, however identical the value looks. Conflating the
+        // two is what let a freshly reloaded scene post the previous run's
+        // time; GameManager now closes that window too, but an action with a
+        // side effect on a remote server should not be reachable from a
+        // catch-up path at all.
+        GameManager.GameState state = GameManager.Instance != null
+            ? GameManager.Instance.State
+            : GameManager.GameState.Playing;
+
+        ApplyState(state, allowSubmit: false);
     }
 
     private void OnDisable()
@@ -79,7 +86,13 @@ public class LevelUIController : MonoBehaviour
         hudTimeText.text = RunTimer.Format(GameManager.Instance.ElapsedMilliseconds);
     }
 
+    /// <summary>A genuine transition. This is the only path allowed to submit.</summary>
     private void HandleStateChanged(GameManager.GameState state)
+    {
+        ApplyState(state, allowSubmit: true);
+    }
+
+    private void ApplyState(GameManager.GameState state, bool allowSubmit)
     {
         if (winPanel != null)
         {
@@ -100,7 +113,7 @@ public class LevelUIController : MonoBehaviour
             winTimeText.text = winTimePrefix + RunTimer.Format(GameManager.Instance.ElapsedMilliseconds);
         }
 
-        if (state == GameManager.GameState.Won)
+        if (state == GameManager.GameState.Won && allowSubmit)
         {
             SubmitRun();
         }

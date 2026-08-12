@@ -108,12 +108,38 @@ public class GameManager : MonoBehaviour
         StateChanged?.Invoke(newState);
     }
 
-    // Every scene load puts us back into Playing. Without this, restarting after
-    // a loss would reload the level with the state still stuck on Lost.
-    //
-    // The timer resets here too, which also covers the MainMenu — harmless,
-    // since loading Level01 resets it again immediately afterwards.
+    // A safety net for scene loads that did NOT go through this class. The real
+    // reset happens in BeginSceneLoad, before the load is requested — see the
+    // comment there for why waiting until the scene has loaded is too late.
     private void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        stateMachine.ResetToPlaying();
+        runTimer.Reset();
+    }
+
+    /// <summary>
+    /// Clear the run BEFORE asking Unity to load a scene, not after.
+    ///
+    /// THIS ORDERING IS A BUG FIX, and the bug was a good one.
+    ///
+    /// Unity runs Awake and OnEnable on every object in the NEW scene, and only
+    /// then raises sceneLoaded. GameManager survives the load, so during that
+    /// window it is still carrying the finished run: State is still Won and
+    /// ElapsedMilliseconds is still the previous time.
+    ///
+    /// LevelUIController reads GameManager.State in its OnEnable so that a
+    /// freshly-created panel matches reality. Landing in that window, it saw
+    /// Won, believed the run had just finished, and submitted the PREVIOUS
+    /// run's time — burning its single-submit guard. The real win a few seconds
+    /// later was then silently ignored.
+    ///
+    /// The symptom was a leaderboard that always showed the run before last.
+    /// The cause was reading state from an object that had not been told the
+    /// level restarted yet. Resetting at the point the load is REQUESTED closes
+    /// the window entirely: there is never a moment where a new scene can
+    /// observe a stale finished run.
+    /// </summary>
+    private void BeginSceneLoad()
     {
         stateMachine.ResetToPlaying();
         runTimer.Reset();
@@ -121,33 +147,39 @@ public class GameManager : MonoBehaviour
 
     public void Win()
     {
-        if (!stateMachine.Win())
+        // The guard is checked here rather than relying on the return value of
+        // stateMachine.Win(), because stateMachine.Win() RAISES StateChanged
+        // from inside itself. Anything reacting to that event — the win panel,
+        // the score submission — reads ElapsedMilliseconds while it runs, so
+        // the timer has to already be stopped by then. Checking first lets
+        // Stop() genuinely be the first thing that happens.
+        if (stateMachine.State != GameState.Playing)
         {
             return; // already won or lost — the goal trigger fired twice
         }
 
-        // Stop BEFORE anything else, so the recorded time is the moment the
-        // bird reached the nest rather than the moment the UI finished
-        // reacting to it.
         runTimer.Stop();
+        stateMachine.Win();
 
         Debug.Log($"WIN — reunited with the family in {RunTimer.Format(ElapsedMilliseconds)}.", this);
     }
 
     public void Lose()
     {
-        if (!stateMachine.Lose())
+        if (stateMachine.State != GameState.Playing)
         {
             return; // already won or lost — multiple hazard contacts in one frame
         }
 
         runTimer.Stop();
+        stateMachine.Lose();
 
         Debug.Log("GAME OVER — hit a hazard.", this);
     }
 
     public void LoadMainMenu()
     {
+        BeginSceneLoad();
         SceneManager.LoadScene(mainMenuSceneName);
     }
 
@@ -157,12 +189,15 @@ public class GameManager : MonoBehaviour
         // than on every scene load is the whole point: a restart must NOT
         // clear the count, or it would always be zero.
         RestartCount = 0;
+        BeginSceneLoad();
         SceneManager.LoadScene(level01SceneName);
     }
 
     public void RestartCurrentScene()
     {
         RestartCount++;
+        BeginSceneLoad();
+
         Scene current = SceneManager.GetActiveScene();
         SceneManager.LoadScene(current.name);
     }
