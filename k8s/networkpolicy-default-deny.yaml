@@ -1,0 +1,23 @@
+# Lock every door on this floor.
+#
+# podSelector: {} means "every pod in this namespace" — an empty selector
+# matches everything, which is the opposite of what your instincts say. Read it
+# as "no filter applied," not "nothing selected."
+#
+# policyTypes: [Ingress] with NO ingress rules listed means: incoming traffic is
+# now governed, and nothing is permitted. There is no such thing as
+# "allow everything except X" in NetworkPolicy. The model is always
+# deny-by-default, then add specific allowances. Policies are ADDITIVE — the
+# final permission set is the union of every policy selecting that pod.
+#
+# APPLYING THIS WILL BREAK YOUR SITE. That is intentional and it is the lesson.
+# The ingress-nginx controller lives in a different namespace and is now
+# treated like any other stranger.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress

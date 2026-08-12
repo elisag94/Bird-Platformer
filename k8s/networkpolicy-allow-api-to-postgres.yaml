@@ -1,0 +1,35 @@
+# The one that matters. Only the API may open the filing cabinet.
+#
+# This is the policy you describe in an interview: the game pods serve static
+# files to the public and have no business whatsoever reaching a database. If
+# one of them were compromised, the blast radius stops here.
+#
+# podSelector picks the pods being PROTECTED (the destination).
+# ingress.from picks who is ALLOWED IN (the source).
+# Getting those the wrong way round is the classic beginner error — the policy
+# is written from the defender's point of view, not the traveller's.
+#
+# A bare podSelector under `from` means "pods in the SAME namespace with this
+# label". To allow a pod from another namespace you would need a
+# namespaceSelector alongside it — and note that listing them as two items in
+# the `from` array means OR, while nesting them under one item means AND.
+# That YAML distinction is subtle, load-bearing, and a favourite interview
+# question.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-api-to-postgres
+spec:
+  podSelector:
+    matchLabels:
+      app: postgres
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              role: api
+      ports:
+        - protocol: TCP
+          port: 5432
