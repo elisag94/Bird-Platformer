@@ -17,7 +17,7 @@ spec:
       automountServiceAccountToken: false
       containers:
       - name: bird-platformer-container
-        image: bird-platformer:v2.1
+        image: bird-platformer:v2.2
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 80

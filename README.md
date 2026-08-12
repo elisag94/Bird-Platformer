@@ -152,7 +152,7 @@ Full instructions are in [`k8s/README.md`](k8s/README.md). The short version:
 ```bash
 minikube start --cni=calico          # default CNI does NOT enforce NetworkPolicy
 eval $(minikube docker-env)
-docker build -f docker/Dockerfile -t bird-platformer:v2.1 .
+docker build -f docker/Dockerfile -t bird-platformer:v2.2 .
 docker build -f api/Dockerfile -t bird-leaderboard:v1 ./api
 
 kubectl apply -f k8s/namespace.yaml

@@ -104,7 +104,7 @@ gets through. Always check before trusting a policy.
 ```bash
 eval $(minikube docker-env)
 
-docker build -f docker/Dockerfile -t bird-platformer:v1 .
+docker build -f docker/Dockerfile -t bird-platformer:v2.2 .
 docker build -f api/Dockerfile -t bird-leaderboard:v1 ./api
 
 docker images | grep -E 'bird-platformer|bird-leaderboard'
@@ -122,7 +122,7 @@ with `eval $(minikube docker-env -u)`.
 Optional smoke test of the game image outside Kubernetes:
 
 ```bash
-docker run --rm -d -p 8081:80 --name smoke bird-platformer:v2.1
+docker run --rm -d -p 8081:80 --name smoke bird-platformer:v2.2
 curl -s -o /dev/null -w '%{http_code}\n' localhost:8081/healthz   # 200
 docker stop smoke
 ```
