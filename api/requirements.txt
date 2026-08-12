@@ -1,0 +1,7 @@
+# Pinned exactly. "flask>=3" would let a future rebuild of the same commit
+# produce a different image, which defeats the point of tagging images with a
+# commit SHA in Week 3 Day 7.
+Flask==3.0.3
+SQLAlchemy==2.0.31
+psycopg2-binary==2.9.9
+gunicorn==22.0.0
