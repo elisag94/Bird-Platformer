@@ -122,7 +122,7 @@ with `eval $(minikube docker-env -u)`.
 Optional smoke test of the game image outside Kubernetes:
 
 ```bash
-docker run --rm -d -p 8081:80 --name smoke bird-platformer:v1
+docker run --rm -d -p 8081:80 --name smoke bird-platformer:v2.1
 curl -s -o /dev/null -w '%{http_code}\n' localhost:8081/healthz   # 200
 docker stop smoke
 ```
