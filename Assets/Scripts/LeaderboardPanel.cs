@@ -42,6 +42,11 @@ public class LeaderboardPanel : MonoBehaviour
     [Tooltip("Fetch automatically whenever this panel becomes visible.")]
     [SerializeField] private bool refreshOnEnable = true;
 
+    [Tooltip("Log every fetch and every discarded response. Unity's Debug.Log shows up in the " +
+             "browser devtools console in a Web build, which makes this the only practical way to " +
+             "watch the request order in a real deployment.")]
+    [SerializeField] private bool logRequests;
+
     [Header("Appearance")]
     [Tooltip("Colour for the row belonging to the player at this machine. Sunset orange by default, " +
              "to match the horizon.")]
@@ -146,6 +151,11 @@ public class LeaderboardPanel : MonoBehaviour
         requestSuperseded = false;
         SetStatus("Loading…");
 
+        if (logRequests)
+        {
+            Debug.Log($"[LeaderboardPanel] fetch level={LevelId} limit={limit}", this);
+        }
+
         LeaderboardClient.Instance.GetTopScores(LevelId, limit, OnLoaded, OnFailed);
     }
 
@@ -162,6 +172,11 @@ public class LeaderboardPanel : MonoBehaviour
         if (!requestSuperseded || LeaderboardClient.Instance == null)
         {
             return false;
+        }
+
+        if (logRequests)
+        {
+            Debug.Log("[LeaderboardPanel] discarded a superseded response; refetching", this);
         }
 
         Fetch();

@@ -189,7 +189,29 @@ public class LeaderboardClient : MonoBehaviour
     public void GetTopScores(string levelId, int limit,
                              Action<LeaderboardResponse> onSuccess, Action<string> onError)
     {
-        string path = $"/api/scores/top?level_id={UnityWebRequest.EscapeURL(levelId)}&limit={limit}";
+        // The trailing _t is a cache-buster, and it exists because of a
+        // difference between the Editor and the browser that is easy to lose a
+        // morning to.
+        //
+        // In the Editor, UnityWebRequest talks to the network itself and there
+        // is no HTTP cache in the way. In a WebGL build there is no socket —
+        // the request becomes a browser fetch, and the browser is free to
+        // answer a repeated GET from cache. The API sends no Cache-Control
+        // header at all, which does not mean "do not cache"; it means "decide
+        // for yourself", and browsers may heuristically reuse the response.
+        //
+        // The symptom would be a leaderboard that refuses to update in the
+        // deployed game while working perfectly in the Editor. A changing
+        // query string makes each request a different URL, so there is nothing
+        // to reuse. Flask ignores the extra parameter.
+        //
+        // The tidier fix belongs on the server — `Cache-Control: no-store` on
+        // the API responses — and is worth doing next time the image is
+        // rebuilt. This one works without redeploying anything.
+        string path = $"/api/scores/top?level_id={UnityWebRequest.EscapeURL(levelId)}" +
+                      $"&limit={limit}" +
+                      $"&_t={DateTime.UtcNow.Ticks}";
+
         StartCoroutine(GetJson(path, onSuccess, onError));
     }
 
