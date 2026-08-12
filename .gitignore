@@ -51,6 +51,7 @@ __pycache__/
 venv/
 .env
 *.md
+!week*
 
 # Corresponding meta files for some ignored IDE artifacts
 *.pidb.meta
