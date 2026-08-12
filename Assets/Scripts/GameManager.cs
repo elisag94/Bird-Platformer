@@ -3,9 +3,9 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 
 /// <summary>
-/// Owns the game state machine (Playing / Won / Lost) and scene transitions.
-/// Everything else — UI, player input, hazards — reacts to StateChanged
-/// instead of holding direct references to each other.
+/// Owns the game state machine (Playing / Won / Lost), the run timer, and
+/// scene transitions. Everything else — UI, player input, hazards — reacts to
+/// StateChanged instead of holding direct references to each other.
 /// </summary>
 public class GameManager : MonoBehaviour
 {
@@ -28,11 +28,24 @@ public class GameManager : MonoBehaviour
     [SerializeField] private string mainMenuSceneName = "MainMenu";
     [SerializeField] private string level01SceneName = "Level01";
 
-    // The actual rules live in a plain C# class so they can be unit tested
-    // without play mode. See Assets/Tests/EditMode/GameStateMachineTests.cs.
+    // The actual rules live in plain C# classes so they can be unit tested
+    // without play mode. See Assets/Tests/EditMode/.
     private readonly GameStateMachine stateMachine = new GameStateMachine();
+    private readonly RunTimer runTimer = new RunTimer();
 
     public GameState State => stateMachine.State;
+
+    /// <summary>
+    /// Elapsed time for the current run, in integer milliseconds. This is the
+    /// value the win screen displays and the leaderboard client submits.
+    /// </summary>
+    public int ElapsedMilliseconds => runTimer.ElapsedMilliseconds;
+
+    /// <summary>
+    /// The level identifier sent to the leaderboard. The scene name is the
+    /// natural key and needs no separate registry to drift out of sync.
+    /// </summary>
+    public string CurrentLevelId => SceneManager.GetActiveScene().name;
 
     private void Awake()
     {
@@ -63,6 +76,16 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    // Ticked unconditionally. RunTimer ignores ticks once stopped, so there is
+    // no state check to forget here — the timer owns that rule, not the caller.
+    //
+    // Time.deltaTime is 0 while Time.timeScale is 0, so a pause menu costs the
+    // player nothing without any extra code.
+    private void Update()
+    {
+        runTimer.Tick(Time.deltaTime);
+    }
+
     private static void RaiseStateChanged(GameState newState)
     {
         StateChanged?.Invoke(newState);
@@ -70,9 +93,13 @@ public class GameManager : MonoBehaviour
 
     // Every scene load puts us back into Playing. Without this, restarting after
     // a loss would reload the level with the state still stuck on Lost.
+    //
+    // The timer resets here too, which also covers the MainMenu — harmless,
+    // since loading Level01 resets it again immediately afterwards.
     private void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
     {
         stateMachine.ResetToPlaying();
+        runTimer.Reset();
     }
 
     public void Win()
@@ -82,7 +109,12 @@ public class GameManager : MonoBehaviour
             return; // already won or lost — the goal trigger fired twice
         }
 
-        Debug.Log("WIN — reunited with the family.", this);
+        // Stop BEFORE anything else, so the recorded time is the moment the
+        // bird reached the nest rather than the moment the UI finished
+        // reacting to it.
+        runTimer.Stop();
+
+        Debug.Log($"WIN — reunited with the family in {RunTimer.Format(ElapsedMilliseconds)}.", this);
     }
 
     public void Lose()
@@ -91,6 +123,8 @@ public class GameManager : MonoBehaviour
         {
             return; // already won or lost — multiple hazard contacts in one frame
         }
+
+        runTimer.Stop();
 
         Debug.Log("GAME OVER — hit a hazard.", this);
     }

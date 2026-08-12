@@ -165,7 +165,7 @@ kubectl create secret generic leaderboard-db \
 minikube addons enable ingress
 sudo sh -c 'echo "127.0.0.1  bird.local" >> /etc/hosts'
 kubectl apply -f k8s/
-minikube tunnel
+minikube tunnel # new terminal
 
 open http://bird.local
 curl -s "http://bird.local/api/scores/top?level_id=Level01&limit=10"
