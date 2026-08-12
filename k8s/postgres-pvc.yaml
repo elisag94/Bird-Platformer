@@ -1,0 +1,24 @@
+# The lease on a filing cabinet.
+#
+# This is a PVC — namespaced, a REQUEST for storage. You are not creating
+# storage here; you are asking for some. minikube's default StorageClass
+# ("standard") sees the request and provisions a matching PersistentVolume
+# automatically. That PV is cluster-scoped: the tenant signs the lease, the
+# building belongs to the landlord.
+#
+# Watch it happen:  kubectl get pvc,pv -n bird-platformer
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-data
+spec:
+  accessModes:
+    # ReadWriteOnce = mountable read-write by ONE node at a time. This is why
+    # the Postgres Deployment uses strategy Recreate rather than a
+    # rolling update: a second pod cannot attach the volume while the first
+    # still holds it, so a rolling update would deadlock, forever, with the new
+    # pod stuck Pending. This bites people in production regularly.
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi

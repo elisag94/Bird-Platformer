@@ -1,0 +1,13 @@
+# The floor of the building that everything else lives on.
+#
+# The `name` label is not decoration. NetworkPolicy's namespaceSelector matches
+# on LABELS — there is no "select this namespace by name" option — so without a
+# label here you cannot write a policy that allows traffic from this namespace.
+# Kubernetes does add kubernetes.io/metadata.name automatically these days, but
+# setting it explicitly makes the intent readable.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: bird-platformer
+  labels:
+    name: bird-platformer

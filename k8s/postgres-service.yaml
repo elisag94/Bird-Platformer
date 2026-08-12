@@ -1,0 +1,21 @@
+# The internal extension number for the database.
+#
+# ClusterIP, which is the default and the correct choice: it gives Postgres an
+# address reachable from inside the cluster and NOWHERE ELSE. No NodePort, no
+# Ingress rule, no route from the street. A database that the internet can dial
+# is a database that will eventually be dialled by the internet.
+#
+# The Service NAME is what matters — "postgres" is what DB_HOST in the
+# ConfigMap points at, and CoreDNS resolves it to this Service's ClusterIP.
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+spec:
+  type: ClusterIP
+  selector:
+    app: postgres
+  ports:
+    - protocol: TCP
+      port: 5432
+      targetPort: 5432

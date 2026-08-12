@@ -1,3 +1,16 @@
+# The front desk, now with two rooms to route to.
+#
+# CRITICAL and easy to miss: an Ingress can only forward to Services in ITS OWN
+# NAMESPACE. There is no cross-namespace backend reference. That is why moving
+# the game into bird-platformer means this Ingress must move with it — leave
+# the Ingress in `default` and the backend column reads
+# "<error: services 'bird-platformer-service' not found>", exactly the 503 you
+# already debugged on Day 4.
+#
+# No rewrite annotation. Flask therefore receives the full path /api/scores,
+# which is what its route decorators declare. If you ever add
+# nginx.ingress.kubernetes.io/rewrite-target, Flask starts seeing /scores and
+# every route 404s.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -5,20 +18,24 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-  - host: bird.local
-    http:
-      paths:
-      - path: /api
-        pathType: Prefix
-        backend:
-          service:
-            name: echo
-            port:
-              number: 80
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: bird-platformer-service
-            port:
-              number: 80
+    - host: bird.local
+      http:
+        paths:
+          # More specific path first for readability. nginx-ingress actually
+          # resolves by longest matching prefix regardless of file order, so
+          # /api/scores lands here and not on the "/" rule — but do not rely on
+          # ordering as a mental model, rely on longest-prefix.
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: leaderboard-service
+                port:
+                  number: 80
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: bird-platformer-service
+                port:
+                  number: 80

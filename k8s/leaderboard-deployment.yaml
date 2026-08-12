@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: leaderboard
+  labels:
+    app: leaderboard
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: leaderboard
+  template:
+    metadata:
+      labels:
+        app: leaderboard
+        # The key that opens the database door. The NetworkPolicy will allow
+        # traffic to Postgres only from pods carrying role=api.
+        role: api
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: leaderboard
+          image: bird-leaderboard:v1
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http
+          envFrom:
+            # envFrom injects EVERY key in the source as an environment
+            # variable, using the key names as-is. Compare with the Postgres
+            # deployment, which used secretKeyRef to pull single keys and
+            # rename them. Both are correct; envFrom is terser when the names
+            # already line up, which is why db.py was written to expect exactly
+            # these names.
+            - configMapRef:
+                name: leaderboard-config
+            - secretRef:
+                name: leaderboard-db
+
+          readinessProbe:
+            # /readyz runs SELECT 1. If Postgres is unreachable this returns
+            # 503, the pod leaves the Service's endpoint list, and traffic
+            # stops arriving. No restart — restarting would not fix a database.
+            httpGet:
+              path: /readyz
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 5
+            failureThreshold: 3
+
+          livenessProbe:
+            # /healthz NEVER touches the database. Pointing liveness at a DB
+            # check means every replica fails simultaneously during a database
+            # outage and Kubernetes restarts the whole deployment — one outage
+            # becomes two. You proved this locally by stopping the container
+            # and watching /healthz stay 200 while /readyz went 503.
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 3

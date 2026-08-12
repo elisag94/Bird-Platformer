@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  labels:
+    app: postgres
+spec:
+  replicas: 1
+  strategy:
+    # Recreate, NOT RollingUpdate. See the note in postgres-pvc.yaml: with a
+    # ReadWriteOnce volume, a rolling update would try to start the new pod
+    # before terminating the old one, the new pod could not mount the volume,
+    # and you would sit at 1 Running + 1 Pending indefinitely.
+    #
+    # Recreate means a few seconds of downtime on every update. For a single
+    # database pod that is the correct trade.
+    type: Recreate
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+        # This label is what the NetworkPolicy will select later: "only pods
+        # labelled role=api may reach pods labelled app=postgres".
+        role: database
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+              name: postgres
+          env:
+            # secretKeyRef pulls ONE named key out of a Secret and maps it to a
+            # differently-named variable. That renaming is the point here: the
+            # official Postgres image wants POSTGRES_USER, your Flask app wants
+            # DB_USER, and both read the same Secret. One source of truth, two
+            # spellings — no chance of them drifting apart.
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: leaderboard-db
+                  key: DB_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: leaderboard-db
+                  key: DB_PASSWORD
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: leaderboard-config
+                  key: DB_NAME
+
+            # THE TRAP. Do not remove this line.
+            #
+            # A freshly provisioned volume often contains a lost+found
+            # directory. Postgres refuses to initialise into a directory that
+            # is not empty, and fails with "directory exists but is not empty".
+            # Pointing PGDATA at a SUBDIRECTORY of the mount sidesteps it
+            # entirely. This is one of the most common self-inflicted wounds
+            # when people first put a database on a PVC.
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            # pg_isready is Postgres' own "am I accepting connections?" check.
+            # Without this, the API pods start talking to a database that is
+            # still initialising and you get a confusing burst of 503s.
+            #
+            # Wrapped in sh -c on purpose: Kubernetes does NOT expand $(VAR)
+            # inside a probe's exec command the way it does for a container's
+            # command/args. Letting the shell do the expansion means changing
+            # the Secret never silently breaks the health check.
+            exec:
+              command:
+                - sh
+                - -c
+                - 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      volumes:
+        - name: postgres-data
+          persistentVolumeClaim:
+            claimName: postgres-data

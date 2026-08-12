@@ -1,0 +1,22 @@
+# Everything the API needs to know that would NOT embarrass you in a screenshot.
+#
+# DB_HOST is the single most important line here. "postgres" is a Service name.
+# It resolves only inside the cluster, via CoreDNS. Type it into your browser
+# and nothing happens — it is an internal extension number, not a street
+# address. The full form is postgres.bird-platformer.svc.cluster.local; the
+# short form works because the API pod lives on the same floor.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: leaderboard-config
+data:
+  DB_HOST: "postgres"
+  DB_PORT: "5432"
+  DB_NAME: "birdscores"
+
+  # Validation bounds. These are in a ConfigMap rather than the image so you
+  # can retune them with a kubectl apply and a pod restart, no rebuild.
+  MIN_RUN_MS: "3000"
+  MAX_RUN_MS: "600000"
+
+  LOG_LEVEL: "INFO"
