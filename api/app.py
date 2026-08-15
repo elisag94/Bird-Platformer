@@ -27,7 +27,7 @@ from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from db import SessionLocal, engine
-from models import Base, Player, Score
+from models import Player, Score
 
 # --------------------------------------------------------------------------
 # Configuration (ConfigMap in Kubernetes, plain env vars locally)
@@ -358,26 +358,17 @@ def handle_not_found(_exc):
 # --------------------------------------------------------------------------
 # Startup
 # --------------------------------------------------------------------------
-
-
-def init_db() -> None:
-    """
-    Create tables if they do not exist.
-
-    SHORTCUT, declared rather than hidden: this is not how migrations should
-    work. With multiple replicas starting simultaneously, two of them can race
-    on first boot. The production answer is Alembic run from a Kubernetes Job
-    or an initContainer, so schema changes happen exactly once, before any app
-    pod serves traffic. Be ready to say that out loud.
-    """
-    Base.metadata.create_all(engine)
-    log.info("schema ensured")
-
-
-init_db()
+#
+# No more schema creation here.
+#
+# create_all() used to run at import time. With two replicas each running two
+# gunicorn workers, that meant four processes racing to create the same tables.
+# Schema is now owned by init_db.py, run once by an initContainer before 
+# this process starts.
 
 
 if __name__ == "__main__":
     # Local convenience only. In the container, gunicorn imports `app` from
-    # this module — see the Dockerfile CMD.
+    # this module — see the Dockerfile CMD. Running locally, execute
+    # `python init_db.py` once first.
     app.run(host="0.0.0.0", port=8080, debug=True)
