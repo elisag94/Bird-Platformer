@@ -23,7 +23,8 @@ spec:
       # non-zero, Kubernetes restarts it and the app container never runs — so
       # a pod can never serve traffic against a schema that was not created.
       #
-      # Same image as the app: one build, one SHA.
+      # Same image as the app: one build, one SHA, no second thing to keep in
+      # sync. It just runs a different command.
       #
       # Two pods means this runs twice. That is fine — init_db.py takes a
       # Postgres advisory lock, so the second one waits and then finds the
@@ -66,17 +67,37 @@ spec:
               path: /readyz
               port: 8080
             initialDelaySeconds: 3
-            periodSeconds: 5
+            periodSeconds: 10
+            # timeoutSeconds defaults to 1, which is far too tight. Under node
+            # pressure, a healthy pod answers in more than a second and gets marked
+            # unready. 3s is still fast enough to catch a real stall.
+            timeoutSeconds: 3
             failureThreshold: 3
 
           livenessProbe:
             # /healthz NEVER touches the database. Pointing liveness at a DB
             # check means every replica fails simultaneously during a database
-            # outage and Kubernetes restarts the whole deployment — one outage
-            # becomes two.
+            # outage and Kubernetes restarts the whole deployment.
+            #
+            # The settings below are deliberately SLACKER than readiness
             httpGet:
               path: /healthz
               port: 8080
-            initialDelaySeconds: 10
-            periodSeconds: 10
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            timeoutSeconds: 5
             failureThreshold: 3
+
+          resources:
+            #
+            # requests = what is guaranteed and used for scheduling.
+            # limits   = the ceiling. Exceed the memory limit and the container
+            #            is OOMKilled (exit 137); exceed the CPU limit and it is
+            #            merely throttled, not killed. That difference matters:
+            #            memory is incompressible, CPU is not.
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
