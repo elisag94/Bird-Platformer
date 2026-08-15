@@ -18,9 +18,30 @@ spec:
         role: api
     spec:
       automountServiceAccountToken: false
+
+      # Runs to completion BEFORE the app container starts. If it exits
+      # non-zero, Kubernetes restarts it and the app container never runs — so
+      # a pod can never serve traffic against a schema that was not created.
+      #
+      # Same image as the app: one build, one SHA.
+      #
+      # Two pods means this runs twice. That is fine — init_db.py takes a
+      # Postgres advisory lock, so the second one waits and then finds the
+      # tables already present.
+      initContainers:
+        - name: init-schema
+          image: bird-leaderboard:v2
+          imagePullPolicy: IfNotPresent
+          command: ["python", "init_db.py"]
+          envFrom:
+            - configMapRef:
+                name: leaderboard-config
+            - secretRef:
+                name: leaderboard-db
+
       containers:
         - name: leaderboard
-          image: bird-leaderboard:v1
+          image: bird-leaderboard:v2
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
@@ -52,8 +73,7 @@ spec:
             # /healthz NEVER touches the database. Pointing liveness at a DB
             # check means every replica fails simultaneously during a database
             # outage and Kubernetes restarts the whole deployment — one outage
-            # becomes two. You proved this locally by stopping the container
-            # and watching /healthz stay 200 while /readyz went 503.
+            # becomes two.
             httpGet:
               path: /healthz
               port: 8080
