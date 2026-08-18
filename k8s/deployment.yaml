@@ -17,10 +17,13 @@ spec:
       automountServiceAccountToken: false
       containers:
       - name: bird-platformer-container
-        image: bird-platformer:v3
+        image: bird-platformer:v4
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 80
+        resources:
+          requests: { memory: "32Mi", cpu: "50m" }
+          limits:   { memory: "128Mi", cpu: "200m" }
         volumeMounts:
         - name: nginx-config
           mountPath: /etc/nginx/conf.d
