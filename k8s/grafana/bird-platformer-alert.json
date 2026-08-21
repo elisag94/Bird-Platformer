@@ -1,0 +1,57 @@
+apiVersion: 1
+groups:
+    - orgId: 1
+      name: bird-platformer
+      folder: bird-platformer
+      interval: 2m
+      rules:
+        - uid: efvvdh8woc5q8f
+          title: Pod Restarting Repeatedly
+          condition: C
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: prometheus
+              model:
+                editorMode: code
+                expr: sum by (pod) (increase(kube_pod_container_status_restarts_total{namespace="bird-platformer"}[5m]))
+                instant: true
+                intervalMs: 1000
+                legendFormat: __auto
+                maxDataPoints: 43200
+                range: false
+                refId: A
+            - refId: C
+              queryType: expression
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 2
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params:
+                            - C
+                      reducer:
+                        params: []
+                        type: last
+                      type: query
+                datasource:
+                    type: __expr__
+                    uid: __expr__
+                expression: A
+                intervalMs: 1000
+                maxDataPoints: 43200
+                refId: C
+                type: threshold
+          noDataState: NoData
+          execErrState: Error
+          for: 2m
+          isPaused: false
+          notification_settings:
+            receiver: empty
