@@ -5,7 +5,6 @@ metadata:
   labels:
     app: bird-platformer
 spec:
-  replicas: 3
   selector:
     matchLabels:
       app: bird-platformer
