@@ -5,6 +5,8 @@ metadata:
   labels:
     app: bird-platformer
 spec:
+  # replicas: intentionally omitted. The HPA owns the pod count.
+  # Setting it here would fight the HPA on every `kubectl apply`.
   selector:
     matchLabels:
       app: bird-platformer
