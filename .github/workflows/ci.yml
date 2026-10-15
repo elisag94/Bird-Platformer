@@ -9,6 +9,12 @@ jobs:
   tests:
     name: Run Unity tests (EditMode + PlayMode)
     runs-on: ubuntu-latest
+    # game-ci/unity-test-runner@v4 changed on 29 Aug 2026 (#310): githubToken now
+    # defaults to the workflow token, so the action posts a "Test Results" check
+    # run.
+    permissions:
+      contents: read
+      checks: write
 
     steps:
       - name: Checkout
