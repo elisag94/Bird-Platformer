@@ -33,16 +33,48 @@ Everything runs in the `bird-platformer` namespace. Postgres has no Ingress
 rule and no NodePort — it is reachable only from inside the cluster, by DNS
 name.
 
+## Tech stack
+
+| Layer | Technology |
+|---|---|
+| Game | Unity 6000.5.6f1, Web (WebGL) build, gzip-compressed |
+| Game server | nginx (`nginx:alpine`) |
+| Leaderboard API | Python 3.12, Flask 3.0.3, gunicorn 22.0.0, SQLAlchemy 2.0.31, psycopg2-binary 2.9.9 |
+| Database | PostgreSQL 16 (`postgres:16-alpine`) |
+| Cluster | minikube (Docker driver) with the Calico CNI |
+| Routing | ingress-nginx (minikube addon) |
+| Autoscaling | HorizontalPodAutoscaler, fed by metrics-server (minikube addon) |
+| Monitoring | kube-prometheus-stack via Helm: Prometheus, Grafana, Alertmanager |
+| CI | GitHub Actions with GameCI (`unity-test-runner`, `unity-builder`) |
+
 ## Prerequisites
 
+Required:
+
+* **macOS.** The tunnel step assumes minikube's Docker driver on a Mac.
 * **kubectl** (v1.26+)
 * **minikube** — and it must be started with a CNI that enforces NetworkPolicy
   (see below). Other clusters work, but the tunnel and addon steps differ.
 * **Docker**
+* **openssl** — generates the database password in step 4. Preinstalled on macOS.
+* **minikube addons:** `ingress` (routing) and `metrics-server` (feeds the HPA
+  and `kubectl top`).
 * A Unity Web build in `web/game/` — gitignored, so not present after a fresh
-  clone. Build it from Unity (File → Build Profiles → Web) with the output
-  folder set to `web/game/`, or download the `web-build` artifact from a CI run
-  and unpack it there.
+  clone. Download `web-build.zip` from the latest GitHub Release (or the
+  `web-build` artifact from a CI run) and unpack it there. To build it yourself
+  instead, see the optional tools below.
+
+Optional:
+
+* **Helm 3** — only for the monitoring stack (`kube-prometheus-stack`). The
+  dashboard and alert rule live in `k8s/grafana/` as JSON to import.
+* **Unity Hub + Unity 6000.5.6f1** with the Web Build Support module — only to
+  build the game locally (File → Build Profiles → Web, output folder
+  `web/game/`).
+* **More minikube memory** if you add monitoring. The default 4 GB cap fits the
+  app, not Prometheus and Grafana as well. Set `--memory` on the *first*
+  `minikube start`; changing it later needs `minikube delete`, which wipes the
+  database PVC.
 
 ## Repository structure
 
@@ -73,6 +105,7 @@ Bird-Platformer/
 │   ├── networkpolicy-default-deny.yaml
 │   ├── networkpolicy-allow-ingress-controller.yaml
 │   ├── networkpolicy-allow-api-to-postgres.yaml
+│   ├── grafana/                        # dashboard + alert rule JSON to import
 │   ├── notes/                          # symptom → cause → fix log
 │   └── README.md
 └── web/
@@ -101,11 +134,23 @@ gets through. Always check before trusting a policy.
 
 ### 2. Build both images inside minikube's Docker daemon
 
+First, put the game build where the game image expects it. Use `curl`
+rather than a browser: Safari unzips downloads automatically, which leaves the
+files one folder too deep.
+
+```bash
+mkdir -p web/game
+curl -L -o web-build.zip \
+  https://github.com/elisag94/Bird-Platformer/releases/latest/download/web-build.zip
+unzip -o web-build.zip -d web/game
+ls web/game        # index.html, Build/, TemplateData/ at the top level
+```
+
 ```bash
 eval $(minikube docker-env)
 
-docker build -f docker/Dockerfile -t bird-platformer:v2.2 .
-docker build -f api/Dockerfile -t bird-leaderboard:v1 ./api
+docker build -f docker/Dockerfile -t bird-platformer:v4 .
+docker build -f api/Dockerfile -t bird-leaderboard:v2 ./api
 
 docker images | grep -E 'bird-platformer|bird-leaderboard'
 ```
@@ -122,7 +167,7 @@ with `eval $(minikube docker-env -u)`.
 Optional smoke test of the game image outside Kubernetes:
 
 ```bash
-docker run --rm -d -p 8081:80 --name smoke bird-platformer:v2.2
+docker run --rm -d -p 8081:80 --name smoke bird-platformer:v4
 curl -s -o /dev/null -w '%{http_code}\n' localhost:8081/healthz   # 200
 docker stop smoke
 ```
