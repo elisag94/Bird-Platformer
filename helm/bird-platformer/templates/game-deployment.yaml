@@ -19,6 +19,7 @@ spec:
     metadata:
       annotations:
         checksum/env: {{ include (print $.Template.BasePath "/game-env-configmap.yaml") . | sha256sum }}
+        checksum/config: {{ include (print $.Template.BasePath "/game-configmap.yaml") . | sha256sum }}
       labels:
         app: bird-platformer
     spec:

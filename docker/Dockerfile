@@ -11,8 +11,9 @@ RUN printf '{"version": "%s"}\n' "$APP_VERSION" > /usr/share/nginx/html/version.
  && sed -i 's#</body>#<script src="build-info.js"></script></body>#' /usr/share/nginx/html/index.html
 # Server config: /healthz for the k8s probes, plus cache rules.
 # NOTE: COPY paths are relative to the build CONTEXT (the repo root), not to
-# this file's location. That's why it reads docker/nginx/... even though this
-# Dockerfile already lives inside docker/.
-COPY docker/nginx/default.conf /etc/nginx/conf.d/default.conf
+# this file's location. That's why it reads helm/bird-platformer/files/...
+# even though this Dockerfile lives inside docker/. That file is the ONE home
+# for the nginx config — Helm reads the same file via .Files.Get.
+COPY helm/bird-platformer/files/nginx-default.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80

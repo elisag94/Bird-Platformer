@@ -9,7 +9,7 @@ strategy:
 
 image:
   repository: bird-platformer
-  tag: v4
+  tag: v5
   pullPolicy: IfNotPresent
 
 replicaCount: 1
