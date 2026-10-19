@@ -10,11 +10,15 @@ spec:
   {{- if not .Values.hpa.enabled }}
   replicas: {{ .Values.replicaCount }}
   {{- end }}
+  strategy:
+    {{- toYaml .Values.strategy | nindent 4 }}
   selector:
     matchLabels:
       app: bird-platformer
   template:
     metadata:
+      annotations:
+        checksum/env: {{ include (print $.Template.BasePath "/game-env-configmap.yaml") . | sha256sum }}
       labels:
         app: bird-platformer
     spec:
@@ -28,6 +32,10 @@ spec:
         resources:
           {{- toYaml .Values.resources | nindent 10 }}
         volumeMounts:
+        - name: env-info
+          mountPath: /usr/share/nginx/html/env.json
+          subPath: env.json
+          readOnly: true
         - name: nginx-config
           mountPath: /etc/nginx/conf.d
           readOnly: true
@@ -45,6 +53,9 @@ spec:
 
       # Volumes belong to the POD, mounts belong to the CONTAINER.
       volumes:
+      - name: env-info
+        configMap:
+          name: bird-platformer-env
       - name: nginx-config
         configMap:
           name: bird-platformer-config

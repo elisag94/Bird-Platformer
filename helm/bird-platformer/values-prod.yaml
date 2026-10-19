@@ -1,3 +1,7 @@
+environment: prod
+strategy:
+  type: RollingUpdate
+  rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }
 ingress:     { host: bird.local }
 hpa:         { enabled: true, minReplicas: 3, maxReplicas: 10 }
 resources:

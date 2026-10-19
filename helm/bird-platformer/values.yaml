@@ -1,4 +1,12 @@
 # Defaults = dev-safe. A mistake here should fail small.
+environment: dev
+
+# Dev's quota has no room for a surge pod, so dev stops the old pod before
+# starting the new one (brief downtime). UAT/prod start the new one first.
+strategy:
+  type: RollingUpdate
+  rollingUpdate: { maxSurge: 0, maxUnavailable: 1 }
+
 image:
   repository: bird-platformer
   tag: v4

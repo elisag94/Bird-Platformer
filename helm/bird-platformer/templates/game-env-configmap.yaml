@@ -1,0 +1,12 @@
+# The ONLY per-environment fact the game page knows about. Served by nginx as
+# /env.json and read by build-info.js. The image is identical in every
+# environment; this ConfigMap is the shelf label.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bird-platformer-env
+  labels:
+    app: bird-platformer
+data:
+  env.json: |
+    {"environment": {{ .Values.environment | quote }}}
