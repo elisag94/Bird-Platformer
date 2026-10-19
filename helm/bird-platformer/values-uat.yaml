@@ -1,0 +1,4 @@
+ingress:     { host: uat.bird.local }
+hpa:         { enabled: true }
+leaderboard: { logLevel: INFO, replicaCount: 2 }
+postgres:    { storageSize: 2Gi }

@@ -1,0 +1,43 @@
+# Cut a key for the receptionist.
+#
+# The ingress-nginx controller runs in the ingress-nginx namespace. Once
+# default-deny is in place it is just another stranger, so both public-facing
+# workloads need an explicit allowance or the whole site 503s.
+#
+# namespaceSelector matches LABELS, never names. kubernetes.io/metadata.name is
+# a label Kubernetes applies to every namespace automatically, which is what
+# makes selecting a namespace by its name possible at all.
+#
+# matchExpressions with operator: In is how you express OR across label values.
+# matchLabels can only AND, so "app=bird-platformer OR app=leaderboard" needs
+# this form.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-controller
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app
+        operator: In
+        values:
+          - bird-platformer
+          - leaderboard
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        # Note the two different ports. The game's nginx listens on 80; Flask
+        # listens on 8080. NetworkPolicy ports are the CONTAINER's real port,
+        # not the Service's port — the policy is enforced at the pod, and the
+        # Service's port 80 → 8080 translation has already happened by then.
+        # Writing 80 here for the leaderboard is a very common and very
+        # confusing mistake.
+        - protocol: TCP
+          port: 80
+        - protocol: TCP
+          port: 8080

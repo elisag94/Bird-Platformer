@@ -1,0 +1,91 @@
+apiVersion: v1
+data:
+  default.conf: |
+    server {
+        listen 80;
+
+        # Where the files live inside the container — this is where the
+        # Dockerfile copies web/game/ to.
+        root /usr/share/nginx/html;
+        index index.html;
+
+        # Kubernetes will ask for this over and over to check the container is
+        # healthy. Answering directly means a probe never has to load a real page.
+        location = /healthz {
+            access_log off;
+            default_type text/plain;
+            return 200 "ok\n";
+        }
+
+        # Browsers should never keep a copy of this page.
+        # "no-cache" means store it but revalidate before every use —
+        # it is NOT "do not store", which is "no-store".
+        #
+        # This rule is also the escape hatch for everything below it. Because
+        # index.html is always revalidated, a new build's index.html reaches the
+        # browser immediately, and it points at the new hashed /Build/ filenames
+        # — which are not in the cache, so they get fetched fresh. Long-lived
+        # caching downstream is only safe because of this one line.
+        location = /index.html {
+            add_header Cache-Control "no-cache";
+        }
+
+        # Safe ONLY while Unity's "Name Files As Hashes" is enabled
+        # (Player Settings → Web → Publishing Settings; stored in
+        # ProjectSettings.asset as webGLNameFilesAsHashes: 1).
+        #
+        # "immutable" tells the browser it never needs to revalidate, which is
+        # a promise that the URL changes whenever the bytes change. With hashing
+        # off, every build emits the same app-v1.wasm and the promise is false:
+        # anyone who loaded an old build keeps it for a year and no deploy ever
+        # reaches them. A cache header is a claim about your build process, not
+        # a performance dial.
+        location /Build/ {
+            add_header Cache-Control "public, max-age=31536000, immutable";
+        }
+
+        # NOT immutable, and this is the part that is easy to miss.
+        #
+        # "Name Files As Hashes" only hashes the /Build/ output. TemplateData
+        # keeps stable names — style.css, favicon.ico, the logo images — so the
+        # same filename really can change contents between builds. Marking these
+        # immutable would be the identical bug, just quieter, because stale CSS
+        # looks like a styling glitch rather than an old game.
+        #
+        # Five minutes: short enough that a bad deploy self-corrects almost
+        # immediately, long enough to avoid a revalidation round trip on every
+        # asset during a single play session.
+        location /TemplateData/ {
+            add_header Cache-Control "public, max-age=300";
+        }
+
+        # Unity gzip-compressed output. Two headers, two different jobs:
+        #   Content-Encoding: how the bytes are wrapped (unwrap me)
+        #   Content-Type:     what they are once unwrapped
+        # Without both, the browser downloads a .gz file instead of running it.
+        #
+        # NOTE: these are regex locations (~), which take priority over the
+        # prefix location /Build/ above — so Cache-Control must be repeated
+        # here. nginx does not merge add_header across blocks; the innermost
+        # block that has ANY add_header wins and the parent's are dropped.
+        location ~ \.wasm\.gz$ {
+            add_header Content-Encoding gzip;
+            add_header Cache-Control "public, max-age=31536000, immutable";
+            default_type application/wasm;
+        }
+
+        location ~ \.js\.gz$ {
+            add_header Content-Encoding gzip;
+            add_header Cache-Control "public, max-age=31536000, immutable";
+            default_type application/javascript;
+        }
+
+        location ~ \.data\.gz$ {
+            add_header Content-Encoding gzip;
+            add_header Cache-Control "public, max-age=31536000, immutable";
+            default_type application/octet-stream;
+        }
+    }
+kind: ConfigMap
+metadata:
+  name: bird-platformer-config

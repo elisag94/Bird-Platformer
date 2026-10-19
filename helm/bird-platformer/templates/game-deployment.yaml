@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bird-platformer-game
+  labels:
+    app: bird-platformer
+spec:
+  # replicas is written only when the HPA is off. When on, the HPA owns the
+  # pod count — two owners of one dial fight (Week 3 Day 4).
+  {{- if not .Values.hpa.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      app: bird-platformer
+  template:
+    metadata:
+      labels:
+        app: bird-platformer
+    spec:
+      automountServiceAccountToken: false
+      containers:
+      - name: bird-platformer-container
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - containerPort: 80
+        resources:
+          {{- toYaml .Values.resources | nindent 10 }}
+        volumeMounts:
+        - name: nginx-config
+          mountPath: /etc/nginx/conf.d
+          readOnly: true
+        readinessProbe:
+          httpGet: { path: /healthz, port: 80 }
+          initialDelaySeconds: 2
+          periodSeconds: 5
+          timeoutSeconds: 3
+        livenessProbe:
+          httpGet: { path: /healthz, port: 80 }
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+
+      # Volumes belong to the POD, mounts belong to the CONTAINER.
+      volumes:
+      - name: nginx-config
+        configMap:
+          name: bird-platformer-config

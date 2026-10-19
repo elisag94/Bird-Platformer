@@ -1,0 +1,7 @@
+ingress:     { host: bird.local }
+hpa:         { enabled: true, minReplicas: 3, maxReplicas: 10 }
+resources:
+  requests:  { memory: 64Mi, cpu: 100m }
+  limits:    { memory: 256Mi, cpu: 500m }
+leaderboard: { logLevel: WARN, replicaCount: 3 }
+postgres:    { storageSize: 5Gi }
