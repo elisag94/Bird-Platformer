@@ -171,3 +171,34 @@ jobs:
           name: web-build
           path: web/game
           retention-days: 7
+
+  image:
+    name: Build & push image
+    runs-on: ubuntu-latest
+    needs: build-web
+    permissions:
+      contents: read
+      packages: write      # lets the job push to GHCR
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get the web build
+        uses: actions/download-artifact@v4
+        with:
+          name: web-build
+          path: web/game
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & push
+        run: |
+          IMAGE=ghcr.io/elisag94/bird-platformer:${{ github.sha }}   # the serial number
+          docker build -f docker/Dockerfile \
+            --build-arg APP_VERSION=${{ github.sha }} \
+            -t "$IMAGE" .
+          docker push "$IMAGE"
