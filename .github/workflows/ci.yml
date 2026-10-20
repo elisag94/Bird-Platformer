@@ -196,9 +196,11 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build & push
+        env:
+          SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
-          IMAGE=ghcr.io/elisag94/bird-platformer:${{ github.sha }}   # the serial number
+          IMAGE=ghcr.io/elisag94/bird-platformer:$SHA
           docker build -f docker/Dockerfile \
-            --build-arg APP_VERSION=${{ github.sha }} \
+            --build-arg APP_VERSION="$SHA" \
             -t "$IMAGE" .
           docker push "$IMAGE"
