@@ -4,6 +4,9 @@ on:
   push:
     branches: [ main ]
   pull_request:
+    
+env:
+  SHA: ${{ github.event.pull_request.head.sha || github.sha }}
 
 jobs:
   tests:
@@ -196,11 +199,85 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build & push
-        env:
-          SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           IMAGE=ghcr.io/elisag94/bird-platformer:$SHA
           docker build -f docker/Dockerfile \
             --build-arg APP_VERSION="$SHA" \
             -t "$IMAGE" .
           docker push "$IMAGE"
+
+  deploy-dev:
+    name: Deploy dev
+    runs-on: ubuntu-latest
+    needs: image
+    environment: dev
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+
+      # TEMP - CI proves the chart renders with this exact image for now, then prints the command.
+      # Week 5's EKS cluster is where this becomes a real `helm upgrade`.
+      - name: Render chart for dev
+        run: |
+          helm template bird-dev ./helm/bird-platformer \
+            --set image.repository=ghcr.io/elisag94/bird-platformer \
+            --set image.tag="$SHA" > /dev/null
+          {
+            echo "### Deploy dev"
+            echo '```'
+            echo "helm upgrade --install bird-dev ./helm/bird-platformer -n bird-dev \\"
+            echo "  --set image.repository=ghcr.io/elisag94/bird-platformer --set image.tag=$SHA"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  deploy-uat:
+    name: Deploy uat
+    runs-on: ubuntu-latest
+    needs: image
+    if: github.ref == 'refs/heads/main'     # third lock: skip entirely off main
+    environment: uat
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+
+      # Same chart, same image tag as dev. Only release, namespace and values file differ.
+      - name: Render chart for uat
+        run: |
+          helm template bird-uat ./helm/bird-platformer \
+            -f ./helm/bird-platformer/values-uat.yaml \
+            --set image.repository=ghcr.io/elisag94/bird-platformer \
+            --set image.tag="$SHA" > /dev/null
+          {
+            echo "### Deploy uat"
+            echo '```'
+            echo "helm upgrade --install bird-uat ./helm/bird-platformer -n bird-uat \\"
+            echo "  -f ./helm/bird-platformer/values-uat.yaml \\"
+            echo "  --set image.repository=ghcr.io/elisag94/bird-platformer --set image.tag=$SHA"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  deploy-prod:
+    name: Deploy prod
+    runs-on: ubuntu-latest
+    needs: deploy-uat
+    if: github.ref == 'refs/heads/main'     # third lock: skip entirely off main
+    environment: prod                       # ⏸ pauses for your approval
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+
+      # Same chart, same image tag as dev. Only release, namespace and values file differ.
+      - name: Render chart for prod
+        run: |
+          helm template bird-prod ./helm/bird-platformer \
+            -f ./helm/bird-platformer/values-prod.yaml \
+            --set image.repository=ghcr.io/elisag94/bird-platformer \
+            --set image.tag="$SHA" > /dev/null
+          {
+            echo "### Deploy prod"
+            echo '```'
+            echo "helm upgrade --install bird-prod ./helm/bird-platformer -n bird-prod \\"
+            echo "  -f ./helm/bird-platformer/values-prod.yaml \\"
+            echo "  --set image.repository=ghcr.io/elisag94/bird-platformer --set image.tag=$SHA"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
