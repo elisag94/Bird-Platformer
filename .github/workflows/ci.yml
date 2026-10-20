@@ -234,7 +234,7 @@ jobs:
     name: Deploy uat
     runs-on: ubuntu-latest
     needs: image
-    if: github.ref == 'refs/heads/main'     # third lock: skip entirely off main
+    if: github.ref == 'refs/heads/main'
     environment: uat
     steps:
       - uses: actions/checkout@v4
@@ -260,8 +260,8 @@ jobs:
     name: Deploy prod
     runs-on: ubuntu-latest
     needs: deploy-uat
-    if: github.ref == 'refs/heads/main'     # third lock: skip entirely off main
-    environment: prod                       # ⏸ pauses for your approval
+    if: github.ref == 'refs/heads/main'
+    environment: prod
     steps:
       - uses: actions/checkout@v4
       - uses: azure/setup-helm@v4
