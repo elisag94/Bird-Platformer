@@ -31,7 +31,7 @@ spec:
       # tables already present.
       initContainers:
         - name: init-schema
-          image: {{ .Values.leaderboard.image }}
+          image: "{{ .Values.leaderboard.image.repository }}:{{ .Values.leaderboard.image.tag }}"
           imagePullPolicy: IfNotPresent
           command: ["python", "init_db.py"]
           envFrom:
@@ -42,7 +42,7 @@ spec:
 
       containers:
         - name: leaderboard
-          image: {{ .Values.leaderboard.image }}
+          image: "{{ .Values.leaderboard.image.repository }}:{{ .Values.leaderboard.image.tag }}"
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
