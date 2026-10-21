@@ -4,11 +4,43 @@ on:
   push:
     branches: [ main ]
   pull_request:
+  workflow_dispatch:
+    inputs:
+      force_build:
+        description: "Rebuild both images even if their inputs didn't change"
+        type: boolean
+        default: false
     
 env:
   SHA: ${{ github.event.pull_request.head.sha || github.sha }}
 
 jobs:
+  changes:
+    name: What changed?
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read      # paths-filter reads the PR's file list
+    outputs:
+      game: ${{ steps.filter.outputs.game == 'true' || inputs.force_build }}
+      leaderboard: ${{ steps.filter.outputs.leaderboard == 'true' || inputs.force_build }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            game:
+              - 'Assets/**'
+              - 'Packages/**'
+              - 'ProjectSettings/**'
+              - 'docker/**'
+              - '.dockerignore'
+              - 'helm/bird-platformer/files/**'
+            leaderboard:
+              - 'api/**'
+      - run: echo "game=${{ steps.filter.outputs.game }} leaderboard=${{ steps.filter.outputs.leaderboard }}"
+
   tests:
     name: Run Unity tests (EditMode + PlayMode)
     runs-on: ubuntu-latest
