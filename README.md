@@ -4,7 +4,7 @@
 stopped once the game was substantial enough to be a realistic deployment
 target.
 
-I wanted to learn Kubernetes properly, and I didn't want to do it against a
+I wanted to learn Kubernetes properly and I didn't want to do it against a
 generic "hello world" container. Since I had started learning Unity earlier in the year, where
 I wanted to build a small 2D platformer, I decided to leverage that to build a real-world deployment pipeline. The interesting work is everything downstream of it: the build
 pipeline, the container, and the manifests.
