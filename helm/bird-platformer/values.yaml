@@ -28,7 +28,9 @@ ingress:
   host: dev.bird.local
 
 leaderboard:
-  image: bird-leaderboard:v2
+  image:
+    repository: bird-leaderboard
+    tag: v2
   logLevel: DEBUG
   replicaCount: 1
 
