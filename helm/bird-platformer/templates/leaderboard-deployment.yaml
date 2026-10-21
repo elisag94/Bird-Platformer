@@ -6,6 +6,8 @@ metadata:
     app: leaderboard
 spec:
   replicas: {{ .Values.leaderboard.replicaCount }}
+  strategy:
+    {{- toYaml .Values.strategy | nindent 4 }}
   selector:
     matchLabels:
       app: leaderboard
