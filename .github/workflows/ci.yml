@@ -297,14 +297,17 @@ jobs:
             docker push "ghcr.io/elisag94/bird-platformer:$SEED"
           fi
 
+      # crane tag only adds a tag to the existing manifest: same digest, no
+      # pull, no rebuild. (imagetools create re-wraps it, so the digest changes.)
+      - name: Set up crane
+        if: needs.changes.outputs.game != 'true'
+        uses: imjasonh/setup-crane@v0.4
+
       - name: Re-label existing image
         if: needs.changes.outputs.game != 'true'
         env:
           SRC: ${{ needs.changes.outputs.game_src }}
-        run: |
-          docker buildx imagetools create \
-            --tag "ghcr.io/elisag94/bird-platformer:$SHA" \
-                  "ghcr.io/elisag94/bird-platformer:$SRC"
+        run: crane tag "ghcr.io/elisag94/bird-platformer:$SRC" "$SHA"
 
   leaderboard-image:
     name: Build or re-label leaderboard image
@@ -337,14 +340,17 @@ jobs:
             docker push "ghcr.io/elisag94/bird-leaderboard:$SEED"
           fi
 
+      # crane tag only adds a tag to the existing manifest: same digest, no
+      # pull, no rebuild. (imagetools create re-wraps it, so the digest changes.)
+      - name: Set up crane
+        if: needs.changes.outputs.leaderboard != 'true'
+        uses: imjasonh/setup-crane@v0.4
+
       - name: Re-label existing image
         if: needs.changes.outputs.leaderboard != 'true'
         env:
           SRC: ${{ needs.changes.outputs.lb_src }}
-        run: |
-          docker buildx imagetools create \
-            --tag "ghcr.io/elisag94/bird-leaderboard:$SHA" \
-                  "ghcr.io/elisag94/bird-leaderboard:$SRC"
+        run: crane tag "ghcr.io/elisag94/bird-leaderboard:$SRC" "$SHA"
 
   deploy-dev:
     name: Deploy dev
