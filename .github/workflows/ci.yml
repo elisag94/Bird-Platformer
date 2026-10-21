@@ -206,6 +206,29 @@ jobs:
             -t "$IMAGE" .
           docker push "$IMAGE"
 
+  leaderboard-image:
+    name: Build & push leaderboard image
+    runs-on: ubuntu-latest
+    # no `needs:` — doesn't depend on Unity, so it runs in parallel from the start
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & push
+        run: |
+          IMAGE=ghcr.io/elisag94/bird-leaderboard:$SHA
+          docker build -t "$IMAGE" api/
+          docker push "$IMAGE"
+
   deploy-dev:
     name: Deploy dev
     runs-on: ubuntu-latest
