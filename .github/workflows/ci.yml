@@ -20,12 +20,18 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pull-requests: read      # paths-filter reads the PR's file list
+      pull-requests: read
+      packages: read           # to check GHCR for existing tags
     outputs:
-      game: ${{ steps.filter.outputs.game == 'true' || inputs.force_build }}
-      leaderboard: ${{ steps.filter.outputs.leaderboard == 'true' || inputs.force_build }}
+      game: ${{ steps.filter.outputs.game == 'true' || inputs.force_build || steps.src.outputs.game_src == '' }}
+      leaderboard: ${{ steps.filter.outputs.leaderboard == 'true' || inputs.force_build || steps.src.outputs.lb_src == '' }}
+      game_src: ${{ steps.src.outputs.game_src }}
+      lb_src: ${{ steps.src.outputs.lb_src }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0         # full history, so git log can look back
+
       - uses: dorny/paths-filter@v3
         id: filter
         with:
@@ -39,7 +45,37 @@ jobs:
               - 'helm/bird-platformer/files/**'
             leaderboard:
               - 'api/**'
-      - run: echo "game=${{ steps.filter.outputs.game }} leaderboard=${{ steps.filter.outputs.leaderboard }}"
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Which commit last changed each image's inputs, and is its image in GHCR?
+      # Empty output = nothing to re-label, so the image must be built.
+      - name: Find last build of each image
+        id: src
+        run: |
+          set -euo pipefail
+          GAME=$(git log -1 --first-parent --format=%H -- \
+            Assets Packages ProjectSettings docker .dockerignore helm/bird-platformer/files)
+          LB=$(git log -1 --first-parent --format=%H -- api)
+
+          if docker manifest inspect "ghcr.io/elisag94/bird-platformer:$GAME" > /dev/null 2>&1; then
+            echo "game_src=$GAME" >> "$GITHUB_OUTPUT"
+          else
+            echo "game_src=" >> "$GITHUB_OUTPUT"
+          fi
+          if docker manifest inspect "ghcr.io/elisag94/bird-leaderboard:$LB" > /dev/null 2>&1; then
+            echo "lb_src=$LB" >> "$GITHUB_OUTPUT"
+          else
+            echo "lb_src=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - run: |
+          echo "game=${{ steps.filter.outputs.game }} src=${{ steps.src.outputs.game_src }}"
+          echo "leaderboard=${{ steps.filter.outputs.leaderboard }} src=${{ steps.src.outputs.lb_src }}"
 
   tests:
     name: Run Unity tests (EditMode + PlayMode)
