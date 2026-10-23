@@ -4,14 +4,96 @@ on:
   push:
     branches: [ main ]
   pull_request:
-    
+  workflow_dispatch:
+    inputs:
+      force_build:
+        description: "Rebuild both images even if their inputs didn't change"
+        type: boolean
+        default: false
+
 env:
   SHA: ${{ github.event.pull_request.head.sha || github.sha }}
 
 jobs:
+  changes:
+    name: What changed?
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      packages: read           # to check GHCR for existing tags
+    outputs:
+      game: ${{ steps.filter.outputs.game == 'true' || inputs.force_build || steps.src.outputs.game_src == '' }}
+      leaderboard: ${{ steps.filter.outputs.leaderboard == 'true' || inputs.force_build || steps.src.outputs.lb_src == '' }}
+      game_src: ${{ steps.src.outputs.game_src }}
+      lb_src: ${{ steps.src.outputs.lb_src }}
+      game_seed: ${{ steps.src.outputs.game_seed }}
+      lb_seed: ${{ steps.src.outputs.lb_seed }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0         # full history, so git log can look back
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            game:
+              - 'Assets/**'
+              - 'Packages/**'
+              - 'ProjectSettings/**'
+              - 'docker/**'
+              - '.dockerignore'
+              - 'helm/bird-platformer/files/**'
+            leaderboard:
+              - 'api/**'
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Which commit last changed each image's inputs, and is its image in GHCR?
+      #   found     -> <name>_src=<commit>   re-label it
+      #   not found -> <name>_src=           must build
+      # When we must build only because that commit was never built (inputs
+      # unchanged), <name>_seed=<commit>: the build also gets that commit's tag,
+      # so the next run finds it instead of falling back forever.
+      - name: Find last build of each image
+        id: src
+        env:
+          GAME_CHANGED: ${{ steps.filter.outputs.game }}
+          LB_CHANGED: ${{ steps.filter.outputs.leaderboard }}
+        run: |
+          set -euo pipefail
+          decide() {   # $1=output prefix  $2=image  $3=changed?  $4=commit
+            if docker manifest inspect "ghcr.io/elisag94/$2:$4" > /dev/null 2>&1; then
+              echo "$1_src=$4"  >> "$GITHUB_OUTPUT"
+              echo "$1_seed="   >> "$GITHUB_OUTPUT"
+            elif [ "$3" != "true" ]; then
+              echo "$1_src="    >> "$GITHUB_OUTPUT"
+              echo "$1_seed=$4" >> "$GITHUB_OUTPUT"
+            else
+              echo "$1_src="    >> "$GITHUB_OUTPUT"
+              echo "$1_seed="   >> "$GITHUB_OUTPUT"
+            fi
+          }
+          GAME=$(git log -1 --first-parent --format=%H -- \
+            Assets Packages ProjectSettings docker .dockerignore helm/bird-platformer/files)
+          LB=$(git log -1 --first-parent --format=%H -- api)
+          decide game bird-platformer  "$GAME_CHANGED" "$GAME"
+          decide lb   bird-leaderboard "$LB_CHANGED"   "$LB"
+
+      - run: |
+          echo "game=${{ steps.filter.outputs.game }} src=${{ steps.src.outputs.game_src }} seed=${{ steps.src.outputs.game_seed }}"
+          echo "leaderboard=${{ steps.filter.outputs.leaderboard }} src=${{ steps.src.outputs.lb_src }} seed=${{ steps.src.outputs.lb_seed }}"
+
   tests:
     name: Run Unity tests (EditMode + PlayMode)
     runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.game == 'true'
     # game-ci/unity-test-runner@v4 changed on 29 Aug 2026 (#310): githubToken now
     # defaults to the workflow token, so the action posts a "Test Results" check
     # run.
@@ -176,16 +258,18 @@ jobs:
           retention-days: 7
 
   image:
-    name: Build & push image
+    name: Build or re-label game image
     runs-on: ubuntu-latest
-    needs: build-web
+    needs: [changes, build-web]
+    if: ${{ !cancelled() && !failure() }}
     permissions:
       contents: read
-      packages: write      # lets the job push to GHCR
+      packages: write
     steps:
       - uses: actions/checkout@v4
 
       - name: Get the web build
+        if: needs.changes.outputs.game == 'true'
         uses: actions/download-artifact@v4
         with:
           name: web-build
@@ -199,17 +283,37 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build & push
+        if: needs.changes.outputs.game == 'true'
+        env:
+          SEED: ${{ needs.changes.outputs.game_seed }}
         run: |
           IMAGE=ghcr.io/elisag94/bird-platformer:$SHA
           docker build -f docker/Dockerfile \
             --build-arg APP_VERSION="$SHA" \
             -t "$IMAGE" .
           docker push "$IMAGE"
+          if [ -n "$SEED" ]; then
+            docker tag "$IMAGE" "ghcr.io/elisag94/bird-platformer:$SEED"
+            docker push "ghcr.io/elisag94/bird-platformer:$SEED"
+          fi
+
+      # crane tag only adds a tag to the existing manifest: same digest, no
+      # pull, no rebuild. (imagetools create re-wraps it, so the digest changes.)
+      - name: Set up crane
+        if: needs.changes.outputs.game != 'true'
+        uses: imjasonh/setup-crane@v0.4
+
+      - name: Re-label existing image
+        if: needs.changes.outputs.game != 'true'
+        env:
+          SRC: ${{ needs.changes.outputs.game_src }}
+        run: crane tag "ghcr.io/elisag94/bird-platformer:$SRC" "$SHA"
 
   leaderboard-image:
-    name: Build & push leaderboard image
+    name: Build or re-label leaderboard image
+    needs: changes
     runs-on: ubuntu-latest
-    # no `needs:` — doesn't depend on Unity, so it runs in parallel from the start
+    # needs only `changes` (seconds) — doesn't wait for Unity, so it runs in parallel
     permissions:
       contents: read
       packages: write
@@ -224,14 +328,34 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build & push
+        if: needs.changes.outputs.leaderboard == 'true'
+        env:
+          SEED: ${{ needs.changes.outputs.lb_seed }}
         run: |
           IMAGE=ghcr.io/elisag94/bird-leaderboard:$SHA
           docker build -t "$IMAGE" api/
           docker push "$IMAGE"
+          if [ -n "$SEED" ]; then
+            docker tag "$IMAGE" "ghcr.io/elisag94/bird-leaderboard:$SEED"
+            docker push "ghcr.io/elisag94/bird-leaderboard:$SEED"
+          fi
+
+      # crane tag only adds a tag to the existing manifest: same digest, no
+      # pull, no rebuild. (imagetools create re-wraps it, so the digest changes.)
+      - name: Set up crane
+        if: needs.changes.outputs.leaderboard != 'true'
+        uses: imjasonh/setup-crane@v0.4
+
+      - name: Re-label existing image
+        if: needs.changes.outputs.leaderboard != 'true'
+        env:
+          SRC: ${{ needs.changes.outputs.lb_src }}
+        run: crane tag "ghcr.io/elisag94/bird-leaderboard:$SRC" "$SHA"
 
   deploy-dev:
     name: Deploy dev
     runs-on: ubuntu-latest
+    if: ${{ !cancelled() && !failure() }}
     needs: [image, leaderboard-image]
     environment: dev
     steps:
@@ -259,7 +383,7 @@ jobs:
     name: Deploy uat
     runs-on: ubuntu-latest
     needs: [image, leaderboard-image]
-    if: github.ref == 'refs/heads/main'
+    if: ${{ !cancelled() && !failure() && github.ref == 'refs/heads/main' }}
     environment: uat
     steps:
       - uses: actions/checkout@v4
@@ -287,7 +411,7 @@ jobs:
     name: Deploy prod
     runs-on: ubuntu-latest
     needs: deploy-uat
-    if: github.ref == 'refs/heads/main'
+    if: ${{ !cancelled() && !failure() && github.ref == 'refs/heads/main' }}
     environment: prod
     steps:
       - uses: actions/checkout@v4
