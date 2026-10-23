@@ -1,22 +1,8 @@
 {
-  "apiVersion": "dashboard.grafana.app/v2",
   "kind": "Dashboard",
+  "apiVersion": "dashboard.grafana.app/v2beta1",
   "metadata": {
-    "name": "adtzz8n",
-    "namespace": "default",
-    "uid": "97f41381-cbed-4846-aad4-dffc912b4c1f",
-    "resourceVersion": "1787334585597016",
-    "generation": 6,
-    "creationTimestamp": "2026-08-21T16:03:15Z",
-    "labels": {
-      "grafana.app/deprecatedInternalID": "1161882972610560"
-    },
-    "annotations": {
-      "grafana.app/createdBy": "user:cfvv4q7nuvjswd",
-      "grafana.app/saved-from-ui": "Grafana v13.2.0 (f681b1359f)",
-      "grafana.app/updatedBy": "user:cfvv4q7nuvjswd",
-      "grafana.app/updatedTimestamp": "2026-08-21T17:49:45Z"
-    }
+    "name": "adtzz8n"
   },
   "spec": {
     "annotations": [
@@ -66,7 +52,7 @@
                       },
                       "spec": {
                         "editorMode": "code",
-                        "expr": "container_memory_working_set_bytes{namespace=\"bird-platformer\", pod=~\"bird-platformer-game.*\"}",
+                        "expr": "container_memory_working_set_bytes{namespace=\"$namespace\", pod=~\"bird-platformer-game.*\"}",
                         "legendFormat": "{{pod}}",
                         "range": true
                       }
@@ -181,7 +167,7 @@
                       },
                       "spec": {
                         "editorMode": "code",
-                        "expr": "increase(kube_pod_container_status_restarts_total{namespace=\"bird-platformer\"}[5m])",
+                        "expr": "increase(kube_pod_container_status_restarts_total{namespace=\"$namespace\"}[5m])",
                         "legendFormat": "{{pod}}",
                         "range": true
                       }
@@ -332,14 +318,42 @@
       "fiscalYearStartMonth": 0
     },
     "title": "Bird Platformer",
-    "variables": [],
-    "preferences": {
-      "layout": {
-        "kind": "GridLayout",
+    "variables": [
+      {
+        "kind": "QueryVariable",
         "spec": {
-          "items": []
+          "name": "namespace",
+          "current": {
+            "text": "bird-dev",
+            "value": "bird-dev"
+          },
+          "label": "Environment",
+          "hide": "dontHide",
+          "refresh": "onDashboardLoad",
+          "skipUrlSync": false,
+          "query": {
+            "kind": "DataQuery",
+            "group": "prometheus",
+            "version": "v0",
+            "datasource": {
+              "name": "prometheus"
+            },
+            "spec": {
+              "qryType": 5,
+              "query": "label_values(kube_pod_info{namespace=~\"bird-.*\"}, namespace)",
+              "refId": "PrometheusVariableQueryEditor-VariableQuery"
+            }
+          },
+          "regex": "",
+          "regexApplyTo": "value",
+          "sort": "disabled",
+          "definition": "label_values(kube_pod_info{namespace=~\"bird-.*\"}, namespace)",
+          "options": [],
+          "multi": false,
+          "includeAll": false,
+          "allowCustomValue": true
         }
       }
-    }
+    ]
   }
 }

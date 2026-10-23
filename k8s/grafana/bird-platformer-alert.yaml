@@ -16,7 +16,7 @@ groups:
               datasourceUid: prometheus
               model:
                 editorMode: code
-                expr: sum by (pod) (increase(kube_pod_container_status_restarts_total{namespace="bird-platformer"}[5m]))
+                expr: sum by (namespace, pod) (increase(kube_pod_container_status_restarts_total{namespace=~"bird-.*"}[5m]))
                 instant: true
                 intervalMs: 1000
                 legendFormat: __auto
